@@ -1,70 +1,114 @@
-# Knuckleball: LBM wake and 3D flight
+# FK: サッカーボール後流と飛翔シミュレーション
 
-`knuckleball.py` is a self-contained NumPy/SciPy/Matplotlib simulation. It computes a seamed cylinder wake using D2Q9 BGK, extracts forces at every step, fits a Fourier wake surrogate, integrates a non-spinning soccer ball's flight with RK45, and produces an animated dashboard.
+FKは、無回転サッカーボール（ブレ球）の空気力学的後流と3次元飛翔挙動を数値的に探求・可視化するプロジェクトです。本リポジトリには、単一スクリプトで完結するPython数値シミュレーションと、ブラウザ上で動作する対話型Webアプリケーション（Flight LabおよびWebGPU 3D CFD）の2つの独立した実装が含まれています。
 
-## Run
+GitHubリポジトリ: [https://github.com/UemuraIkki/FK](https://github.com/UemuraIkki/FK)
+
+## プロジェクト構成と物理モデルの区別
+
+本プロジェクトは目的と対象に応じた2つの実装から構成されており、それぞれの初期条件および計算モデルは明確に区別されています。
+
+| 項目 | Python版 (`knuckleball.py`) | Web版 Flight Lab (`web/`) |
+| --- | --- | --- |
+| **主目的** | バッチ処理による2次元後流計算・同定・3次元軌道積分と動画出力 | ブラウザ上での対話的パラメータ調整・軌道表示およびWebGPU固定条件3D CFD |
+| **流体計算** | 2次元円柱 D2Q9 BGK（低レイノルズ数 $\text{Re}=86.4$） | 固定条件の非定常3D流れ D3Q19 WebGPU（平滑球、粗格子LES） |
+| **飛翔計算** | 3次元RK45（SciPy、無回転、経験的抗力危機＋低周波剥離揺らぎ） | 3次元固定刻みRK4（スピン、マグヌス力、スピン依存後流減衰） |
+| **初期高度** | **ボール中心高さ 0.35 m 固定**（底面地上高 0.24 m） | **ボール底面 0 m 基準**（中心高さ＝半径＋蹴り出し高さ） |
+| **スピン** | なし（無回転ブレ球固定、マグヌス力なし） | あり（$-24 \sim +24$ 回転/s、回転軸可変） |
+| **連成形態** | 流体計算から後流周波数を抽出して飛翔に適用（非連成） | 飛翔軌道から特定時刻の対気速度・回転を切り出して固定条件で非定常3D流れを計算（双方向連成なし） |
+| **実行環境** | Python 3.12（NumPy, SciPy, Matplotlib, Pillow） | 静的ES Modules（ビルド不要、ブラウザ直接実行） |
+
+### 1. Pythonシミュレーション（`knuckleball.py`）
+
+外部データを必要としない単一ファイルの自己完結スクリプトです。固定された非対称縫合線を持つ円柱周りの層流後流を2次元格子ボルツマン法（LBM）で解き、得られた抗力・揚力から渦放出周波数を同定します。その周期変動に3次元球体のロジスティック抗力危機モデルと低周波のオルンシュタイン＝ウーレンベック過程による剥離揺らぎを組み合わせ、無回転球の3次元軌道を積分します。詳細な数理モデルと検証基準は [docs/python.md](docs/python.md) にまとめています。
+
+### 2. Web版 Flight Lab（`web/dist/`）
+
+ブラウザのみで動作する対話型シミュレーションです。ボールの底面地上高（初期値 0 m）、初速、蹴り上げ角度、スピン量、風向・風速などを動的に調整しながら、固定刻みRK4による3次元軌道をリアルタイムに描画します。
+
+`web/dist` ディレクトリはビルド成果物ではなく静的なソースコードであり、トランスパイルやバンドル作業を行わずに直接ブラウザへ読み込まれます。同ディレクトリ内の `calibration.json`（後流同定データ）および `wake.bin`（2次元渦度参照データ）は実行に必要な静的資産です。
+
+さらに `flow.html` では、WebGPUを用いたD3Q19格子ボルツマン法（スマゴリンスキーLES）により、飛行中の選択時刻の条件（対気速度・回転）を固定して非定常3D気流場を粗格子で解きます（移動する球体との双方向連成計算ではありません）。詳細な仕様と制約は [web/README.md](web/README.md) を参照してください。
+
+## クイックスタート
+
+本プロジェクトのCI（継続的インテグレーション: `.github/workflows/ci.yml`）は、Python 3.12（`python-test` ジョブ）および Node.js 22（`web-test` ジョブ）の2つのジョブで構成されています。
 
 ```bash
+# リポジトリのクローンと移動
+git clone https://github.com/UemuraIkki/FK.git
+cd FK
+```
+
+### Pythonシミュレーションの実行
+
+`requirements.txt` に記載された依存パッケージ（NumPy, SciPy, Matplotlib, Pillow）を導入して実行します。
+
+```bash
+# 仮想環境の作成とパッケージ導入（リポジトリルート FK/ で実行）
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
+
+# 高速プリセットでの実行（240x120セル、48,000ステップ）（リポジトリルート FK/ で実行）
 python knuckleball.py --quick
-```
 
-The quick preset uses 240×120 cells and 48,000 steps, with the first 24,000 discarded for calibration. The default uses 400×200 cells and 60,000 steps. Both precompute the flow and fit before opening the animation; progress and estimated remaining time appear in the terminal. Runtime depends on the CPU and NumPy build.
-
-```bash
-# Headless simulation and GIF export
+# ヘッドレス実行でGIF動画を出力（Pillowを使用）（リポジトリルート FK/ で実行）
 python knuckleball.py --quick --no-show --save output/knuckleball.gif
 
-# Default resolution, MP4 export (install ffmpeg separately)
+# MP4動画の出力（PATH上にffmpegが必要）（リポジトリルート FK/ で実行）
 python knuckleball.py --no-show --save output/knuckleball.mp4
 
-# More wake development and a longer calibration window
-python knuckleball.py --steps 100000 --warmup 45000
-
-# Numerical invariant tests
+# 単体テストの実行（数値不変量7項目）（リポジトリルート FK/ で実行）
 python -m unittest -v
 ```
 
-`--output output/name` selects the prefix for the PNG dashboard, compressed NPZ arrays, JSON configuration/diagnostics, force CSV, and trajectory CSV. `--no-show` selects Matplotlib's Agg backend. GIF export needs Pillow; MP4 export checks for ffmpeg before starting the solver. `--help` lists controls, including launch speed/elevation, seam depth/angle, grid size, relaxation time, and empirical force gains. Angles for the seams are radians; launch elevation is degrees.
+### Webアプリケーションの実行
 
-## What is resolved and what is modeled
+リポジトリルートの `package.json` にスクリプトが定義されており、追加のパッケージ導入（`npm install`）不要でローカルサーバーを起動できます。
 
-The requested combination of a small grid, low Mach number, τ=0.53–0.6, and resolved Re≈10⁴–10⁵ is inconsistent. For BGK,
-
-```text
-nu_LB = (tau - 0.5)/3
-Re_LB = U_LB D_LB / nu_LB
-Ma_LB = sqrt(3) U_LB
+```bash
+# 静的HTTPサーバーの起動（リポジトリルート FK/ で実行）
+npm run serve
+# または直接 Python サーバーを起動
+# python3 -m http.server 8765 --bind 127.0.0.1 --directory web/dist
 ```
 
-The default is Re=86.4 and inlet Ma=0.0416. A units conversion cannot change Reynolds number. At τ=0.53 and U=0.024, resolving Re=100,000 would require a ball diameter of approximately 41,667 lattice cells. A 2D cylinder also cannot reproduce the turbulent boundary-layer transition and longitudinal vortices of a 3D soccer ball.
+サーバー起動後、ブラウザで `http://127.0.0.1:8765/` を開いてください。
+※ 3D CFDタブの実行には、WebGPU対応ブラウザおよび安全なコンテキスト（HTTPSまたはlocalhost/127.0.0.1）が必要です。
 
-This implementation therefore uses two explicit components:
+### テストと検証
 
-1. **Resolved 2D flow.** The actual BGK wake develops behind a stationary, asymmetrically perturbed circle. The inlet uses Zou–He velocity reconstruction followed by boundary-only second-moment regularization to control kinetic modes at small τ. It preserves the reconstructed density, momentum, and non-equilibrium stress; the interior collision remains plain BGK. The outlet extrapolates incoming populations with zero normal gradient, and the top and bottom are periodic. Cut links use halfway bounce-back, with obstacle force `F = sum_links 2 f_i_post_collision c_i`. Cylinder coefficients use `0.5 rho_LB U_LB² D_LB` per unit span. Seams are exaggerated to remain visible on the grid; the curved surface is rasterized, with a staircase location error. The force extraction itself is not randomized.
-2. **Empirical high-Re flight.** A spectrum and least-squares fit identify the resolved lift frequency, three harmonics, and force amplitudes. Physical wake phase advances with `ds/dt = speed / ball_diameter`. A logistic sphere drag crisis, transition lag, seeded slow separation wandering, and a moving transverse force direction represent the unresolved 3D physics. Their gains and timescales are assumptions. The sphere drag mean is not the cylinder drag mean. The default physical critical Reynolds number is 300,000; `--critical-re` changes it independently of the CFD.
+```bash
+# Python単体テスト（リポジトリルート FK/ で実行）
+python -m unittest -v
 
-Sphere drag is `Cd = [(1-h) Cd_sub + h Cd_super] exp(g_drag delta_Cd_LB)`, where `dh/dt = (h_equilibrium(Re,t)-h)/transition_time`. The equilibrium fraction is a logistic function of Reynolds number with a slowly varying transition threshold. The fitted high-frequency lift and an additional slow wandering term determine the sphere side coefficient. Setting `--wander-strength 0` removes the empirical slow lift wandering; `--lift-gain 0` removes all transverse forcing. `BallConfig` exposes the remaining closure parameters.
+# Webロジック・数値処理テスト（リポジトリルート FK/ で実行）
+npm test
+# または個別に実行
+# node web/test-physics.mjs
+# node --test web/test-cfd.mjs web/test-flow.mjs web/test-flight-view.mjs
+```
 
-The slow forcing is sampled once using an exact discrete Ornstein–Uhlenbeck update, then interpolated at RK45 evaluation times. No random numbers are drawn inside the ODE. The same seed therefore defines the same force realization regardless of solver stage/rejection history. The lateral force is perpendicular to instantaneous velocity and does no work. There is no imposed spin, Magnus term, or two-way coupling to a moving CFD obstacle.
+> **検証範囲に関する注意**: 自動CIテストでは、軌道積分の数値精度、格子換算、座標系変換、および模擬ソルバーによるライフサイクル管理を検査します。一方、3D CFDタブ（WebGPU）のシェーダー実行および実機描画パイプラインは、ブラウザから `http://127.0.0.1:8765/cfd-validation.html` を開いて別途確認します。
 
-The 30 m flight terminates at the target plane or when the bottom of the ball touches the ground. A second integration using the same drag model with no side force provides a reference. Lateral axes are enlarged and labeled; the coordinates are actual ODE output. A finite-mass ball responds with smooth changes of curvature rather than sharp corners.
+## モデルの限界と解像範囲
 
-## Units and interpretation
+本プロジェクトのシミュレーションは教育および可視化を目的とした近似モデルであり、実球の空力特性に対する厳密な実験検証モデルではありません。
 
-The geometric/time correspondence is `dx = D_ball/D_LB` and `dt = U_LB dx/V_reference`. It matches the diameter and convection time, but the corresponding CFD viscosity `nu_LB dx²/dt` is much larger than air's physical viscosity. Both values and both Reynolds numbers are recorded in JSON. The physical trajectory uses `rho=1.225 kg/m³`, `nu=1.5e-5 m²/s`, `D=0.22 m`, `m=0.43 kg`, and sphere area `pi D²/4`.
+1. **レイノルズ数と次元の不一致**: Python版のLBM計算は2次元・低レイノルズ数（$\text{Re}=86.4$）であり、3次元乱流遷移や後流の3次元縦渦構造を解像していません。球の抗力危機と不規則横力は経験的数式による補完です。
+2. **粗格子LESの性質**: Web版のWebGPU 3D CFDは平滑球を対象とする粗格子LES（球直径16セル）であり、縫合線の微細形状や境界層遷移は解像されていません。数式上のレイノルズ数を高めても、高レイノルズ数の乱流現象が物理的に正しく再現されるわけではありません。
+3. **非連成計算**: いずれの実装も、飛行中の球体の運動と流体計算が互いに影響を及ぼし合う双方向連成（Moving-boundary CFD）は行っていません。
 
-Flow and flight animations have separate, labeled clocks: the post-warmup training CFD record and the full trajectory each span the movie. The animation does not suggest simultaneous, moving-ball CFD. Vorticity is `dv/dx-du/dy`, displayed as `omega D/U`; the obstacle and its one-cell derivative stencil are masked. Quivers show velocity divided by inlet speed.
+## ドキュメント一覧
 
-The code rejects nonfinite populations, density outside [0.8,1.2], or sampled local Mach ≥0.1, rather than silently stabilizing bad data. The local-Mach check runs every 100 steps. Short or weak shedding records cannot produce a fabricated surrogate; the fit either fails or emits a provisional-calibration warning with cycle count, lift R², and amplitude-stationarity information. Startup force spikes are saved but excluded from the fit and plotted calibration window.
+- [docs/python.md](docs/python.md): Pythonシミュレーションの数理モデル、境界条件、単位換算、およびCLI詳細仕様
+- [web/README.md](web/README.md): Web Flight LabのUI操作、RK4飛行モデル、WebGPU D3Q19数値解法、および検証手順
+- [CONTRIBUTING.md](CONTRIBUTING.md): 開発・テスト手順およびコード変更時の確認チェックリスト
 
-These are educational simulations, not validated soccer-ball predictions. Periodic blockage, seam resolution, outlet distance, and force statistics need grid/domain/time-convergence studies before quantitative use. Predicting a particular ball's drag crisis and irregular flight requires suitable 3D transition/turbulence modeling or measured force data.
+## 参考文献
 
-## Sources
-
-- [Zou and He: LBM pressure/velocity boundary conditions and bounce-back](https://arxiv.org/abs/comp-gas/9611001).
-- [Latt et al.: accuracy and stability of velocity boundaries](https://doi.org/10.1103/PhysRevE.77.056703).
-- [Asai et al.: soccer-ball critical Reynolds numbers and roughness effects](https://www.jstage.jst.go.jp/article/jjpehss/52/1/52_3/_article/-char/en).
-- [Mizota et al.: measured irregular soccer-ball flight and 3D wake behavior](https://doi.org/10.1038/srep01871).
+- [Zou and He: LBM pressure/velocity boundary conditions and bounce-back](https://arxiv.org/abs/comp-gas/9611001)
+- [Latt et al.: accuracy and stability of velocity boundaries](https://doi.org/10.1103/PhysRevE.77.056703)
+- [Asai et al.: soccer-ball critical Reynolds numbers and roughness effects](https://www.jstage.jst.go.jp/article/jjpehss/52/1/52_3/_article/-char/en)
+- [Mizota et al.: measured irregular soccer-ball flight and 3D wake behavior](https://doi.org/10.1038/srep01871)

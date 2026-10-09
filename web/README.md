@@ -1,148 +1,151 @@
-# Flight Lab
+# Flight Lab（Web版 飛翔・流体シミュレーション）
 
-回転数、回転軸、初速、蹴り上げ角度、風、ボールの質量・直径などを調整する日本語のWebアプリです。ブラウザだけで計算し、外部の計算APIやAPIキーは使いません。
+回転数、回転軸、初速、蹴り上げ角度、風、ボールの質量・直径などをブラウザ上で対話的に調整するWebアプリケーションです。計算はすべてブラウザ内で完結し、外部のAPIや外部計算サーバーは使用しません。
+
+## 起動方法
+
+本ディレクトリ内の静的ファイルをHTTPサーバー経由で提供します。リポジトリルートの `package.json` にスクリプトが用意されており、追加の依存パッケージ導入（`npm install`）は不要です。
 
 ```bash
-python3 -m http.server 8765 --bind 127.0.0.1 --directory dist
-# http://127.0.0.1:8765/ を開く
-node test-physics.mjs
+# リポジトリルート (FK/) から起動する場合
+npm run serve
+
+# または web/ ディレクトリから起動する場合
+# python3 -m http.server 8765 --bind 127.0.0.1 --directory dist
 ```
 
-## 操作
+サーバー起動後、ブラウザで `http://127.0.0.1:8765/` を開きます。
+※ 3D CFDタブの実行には、WebGPU対応ブラウザおよび安全なコンテキスト（HTTPSまたはlocalhost/127.0.0.1）が必要です。
 
-- 「蹴り出す高さ」はボールの底から地面までの距離を0〜2 mで設定します。初期値0 mではボールを地面に置いて蹴ります。軌道、到達時の高さ、最高到達点のz座標はボールの中心です。直径を変えても底面が地面に接するよう、初期中心高さを「半径＋蹴り出す高さ」とします。地面での転がりやバウンドは計算せず、水平に蹴って離陸しない場合は飛行時間0として再生を無効にします。
-- 初速は10〜50 m/s、蹴り上げ角度は0〜90°、回転数は−24〜24回転/s、左右の打ち出し角は−90〜90°で設定できます。数値入力とスライダーは同じ範囲で連動します。
-- 微回転ブレ球（0.3回転/s）、無回転、カーブ、ドライブ、バックスピンをプリセットで選択できます。プリセットは蹴り方を変更し、風やボールの設定は保持します。「リセット」で全設定を初期値に戻します。
-- 各パラメータはスライダーと数値入力の両方で設定できます。範囲内の値は入力中に反映され、終点・最高到達点・空力係数を再計算します。数値入力ではスライダーの刻みより細かい値も指定できます。「後流パターン」は整数で指定します。空欄や範囲外の値は計算に反映されず、Enterまたはフォーカスを外すと入力内容を確認します。Escapeで直前の有効な値に戻せます。
-- 正の回転数と回転軸0°で右へ曲がります。軸+90°はバックスピン、−90°はトップスピンです。負の回転数では向きが逆転します。
-- 3D表示はドラッグまたは矢印キーで回転、ホイールで拡大できます。上面・側面・ゴール正面にも切り替えられます。
-- 再生、停止、再生位置、再生速度を操作できます。スマートフォンでは「パラメータを調整」で設定パネルを開きます。
-- ゴール幅7.32 m、高さ2.44 mを基準に表示します。球の大きさも考慮して枠内かどうかを判定しますが、ポストとの衝突は計算しません。
+## 操作方法
 
-## 計算モデル
+- **蹴り出す高さ**: ボール底面から地面までの距離を 0〜2 m の範囲で設定します。既定値の 0 m はボールを地面に置いた状態を表します。初期のボール中心高さは「半径＋蹴り出す高さ」で決まります。地面との反発や転がりは計算せず、水平に蹴り出して揚力が重力を上回らない場合は、飛行時間を0として再生を無効化します。
+- **打ち出し条件**: 初速（10〜50 m/s）、蹴り上げ角度（0〜90°）、回転数（−24〜24 回転/s）、左右の打ち出し角（−90〜90°）を設定できます。スライダーと数値入力欄は相互に連動します。
+- **プリセット**: 微回転ブレ球（0.3 回転/s）、無回転、カーブ、ドライブ、バックスピンを選択できます。プリセットは蹴り出しパラメータを変更し、風やボールの物理定数は維持します。「リセット」を押すとすべての設定を初期値に戻します。
+- **回転の影響**: 正の回転数かつ回転軸 0° で右へ曲がります。軸 +90° はバックスピン（浮き上がり）、−90° はトップスピン（沈み込み）に対応します。負の回転数では曲がる向きが逆転します。
+- **3D可視化**: 軌道画面はドラッグまたは矢印キーで回転し、ホイール操作で拡大・縮小できます。上面・側面・ゴール正面の視点切り替えボタンも備えています。
+- **ゴール判定**: ゴール枠（幅 7.32 m、高さ 2.44 m）を基準とし、ボールの半径を考慮して枠内通過を判定します。ポストとの衝突計算は行いません。
 
-`physics.js`は既存Python版の飛行モデルをJavaScriptに移植し、マグヌス力を追加したものです。固定刻み1/600秒のRK4を使い、地面または指定距離を最初に横切る時点で終了します。空間座標はxが前方、yが右、zが上です。すべてSI単位で計算します。
+## 飛行計算モデル
 
-空気相対速度を`v_rel`、角速度を`omega`、半径を`R`とすると、回転による力の向きは`omega × v_rel`、無次元回転数は`S = R |omega × v_rel| / |v_rel|²`です。回転揚力係数には、このデモで仮定した`Cm = 0.6 S / (0.3 + S)`を使用します。後流の横力振幅には別の全回転スピンパラメータ `Sw = π D |f| / |v_rel|` を使い、`retention = exp(-ln(2) (Sw / S_half)²)`で減衰させます。`S_half = π × 0.22 × wakeHalfSpin / 25`で、`wakeHalfSpin`は25 m/s・直径22 cmにおいて横力振幅が無回転時の半分になる回転数（回転/s）です。既定値は1.8、設定範囲は0.2〜4.0です。ゼロ回転でも微回転でも同じ連続式を使います。飛行中は風を含む空気相対速度で更新します。全回転を後流減衰に使うのは経験的な仮定で、マグヌス力が0となる流れ方向の回転でも後流振幅は減衰します。これらの係数は実験に合わせたものではありません。回転軸・回転速度は飛行中一定とし、逆マグヌス効果や回転による抗力係数の直接変化は扱いません。
+`dist/physics.js` は、Python版の飛翔モデルをJavaScriptへ移植し、スピンによるマグヌス力とスピンに応じた後流減衰を追加したモデルです。固定刻み 1/600 秒の4次ルンゲ＝クッタ法（RK4）により、地面接触または目標距離（30 m）到達まで積分します。空間座標系は $x$ が前方、$y$ が右、$z$ が上（鉛直上方）であり、すべての計算をSI単位系で行います。
 
-「ブレの半減回転数」は、回転によってブレが抑えられる速さを調整するパラメータです。0回転では常に減衰なし、基準条件で半減回転数と同じ回転数なら50%になります。「回転で残るブレ成分」は初期条件での後流横力の振幅比で、マグヌス力との比や軌道の曲がり量ではありません。後流の揺らぎが0ならOFFと表示します。
+空気に対する相対速度を $\mathbf{v}_{\text{rel}}$、角速度を $\boldsymbol{\omega}$、半径を $R$ とすると、マグヌス力の向きは $\boldsymbol{\omega} \times \mathbf{v}_{\text{rel}}$、無次元回転パラメータは $S = R |\boldsymbol{\omega} \times \mathbf{v}_{\text{rel}}| / |\mathbf{v}_{\text{rel}}|^2$ です。回転揚力係数には経験式 $C_m = 0.6 S / (0.3 + S)$ を採用しています。
+
+後流による不規則な横力は、全回転スピンパラメータ $S_w = \pi D |f| / |\mathbf{v}_{\text{rel}}|$（$f$ は回転数）に応じて減衰させます。減衰率は $\text{retention} = \exp(-\ln(2) (S_w / S_{\text{half}})^2)$ で計算します。ここで $S_{\text{half}} = \pi \times 0.22 \times \text{wakeHalfSpin} / 25$ であり、$\text{wakeHalfSpin}$ は初速 25 m/s・直径 22 cm において横力振幅が無回転時の半分になる基準回転数（既定値 1.8 回転/s、設定範囲 0.2〜4.0）です。回転軸と回転速度は飛行中一定とし、逆マグヌス効果や回転による抗力係数の変化は扱いません。
 
 [Mizotaほか（2013）](https://pmc.ncbi.nlm.nih.gov/articles/PMC3660809/)では低回転球の不規則な飛行と三次元の縦渦の変動が調べられています。これは完全な無回転だけに限った現象ではありません。上記の減衰式と半減回転数は、この実験から同定した値ではなく、傾向を比較するための経験モデルです。実球のブレの大きさは速度や表面形状などにも依存し、ゼロ回転に近づくほど必ず増加するとは限りません。2次元のカルマン渦列と球の後流は区別します。
 
 球の回転が揚力を生む物理的な説明は[NASAの解説](https://www1.grc.nasa.gov/beginners-guide-to-aeronautics/lift-of-a-soccer-ball/)を参照してください。本アプリの係数式がNASAの検証モデルであることを意味しません。
 
-`calibration.json`には、既存の400×200セル、Re=86.4のLBM計算から求めたフーリエ係数と、Python版の初期パターンに対応するOU過程の標本を保存しています。旧設定と同じ中心高さ0.35 m（直径0.22 m、蹴り出す高さ0.24 m）の無回転軌道は、Python版のRK45結果と終点で0.1 mm以内に一致することをテストします。これは移植の整合性確認であり、実球に対する予測精度ではありません。
+### 参照データ資産
 
-`wake.bin`は実際に保存したLBM渦度データを縮小・量子化した参照アニメーションです。48フレーム、100×50セル、符号付き8ビット整数で、値/40が`omega D/U`、−128は障害物近傍のマスクを表します。スライダーの値を変更しても、このCFDは再計算しません。高Reの抗力危機と3次元後流変動は経験モデルです。CFDの周期近似のR²は揚力0.976、抗力0.084で、抗力変動の再現には限界があります。
+`web/dist` に配置されている以下のファイルは、ビルド生成物ではなく実行に必要な静的データ資産です。
 
-対応ブラウザではWebMCPの`get_flight_simulation`と`configure_flight_simulation`を登録します。非対応ブラウザでも通常の操作には影響しません。
+- `calibration.json`: Python版の $400 \times 200$ セル、$\text{Re}=86.4$ のLBM計算から同定したフーリエ級数係数と、初期シード（シード7）に対応するOU過程のノイズ標本を格納しています。旧設定と同じ中心高さ 0.35 m（直径 0.22 m、蹴り出す高さ 0.24 m）の無回転軌道において、Python版のRK45積分結果と終点位置が 0.1 mm 以内で一致することをテストで検証しています。これは移植の整合性確認であり、実球に対する予測精度を保証するものではありません。
+- `wake.bin`: 2次元LBMの渦度データを縮小・量子化した参照アニメーション（48フレーム、$100 \times 50$ セル、符号付き8ビット整数）です。スライダー操作時にCFDを再計算することなく、軌道画面上で後流の挙動をプレビューするために使用します。
 
-検証に使用したChromeではWebMCPの登録APIが提供されていなかったため、WebMCP経由の動作確認は未実施です。通常のスライダー操作、プリセット、再生、視点切り替え、CFD表示、モバイルの設定パネルはブラウザで確認しました。
+対応ブラウザではWebMCPのツール登録を行いますが、WebMCP非対応のブラウザでも画面上の操作や計算に影響はありません。
 
-## 3D CFD flow tab (2026-10)
+## 3D CFDタブ（WebGPU D3Q19）
 
-`flow.html` receives a validated kick configuration and the playback fraction in
-its URL fragment. It integrates the existing trajectory model, interpolates the
-chosen flight velocity, subtracts the wind, and transforms angular velocity into
-a local right-handed frame. Local +x points downstream, +z is the projection of
-world up normal to the incoming air (a fallback is used for nearly vertical flow).
-The selected velocity and rotation are **held fixed** during each CFD run. This is
-a local condition study, not a two-way coupled moving-ball calculation.
+`flow.html` は、軌道画面で設定されたキックパラメータと選択された飛行時点（進捗割合）をURLハッシュ経由で受け取ります。軌道計算結果から該当時刻の飛行速度（軌道速度）を補間し、風速を差し引いて対気速度を算出した上で、局所右手系座標へ変換します。局所座標系は $+x$ が下流方向（気流の向き）、$+z$ が気流と直交する鉛直射影方向です（鉛直に近い気流に対するフォールバック処理あり）。
 
-`lbm-gpu.js` solves the actual 3D discrete kinetic equations on WebGPU:
+選択された対気速度と回転速度は、**CFD計算中は一定値に固定**されます。これは飛翔中の一時点で固定した流入・回転条件のもとで非定常3D流れを解くものであり、移動する球体との双方向連成計算ではありません。
 
-- D3Q19, second-order equilibrium, pull streaming, second-order Hermite
-  regularization of the nonequilibrium stress.
-- Smagorinsky SGS closure with Cs = 0.16, filter width = one cell:
-  `tau_eff = (tau0 + sqrt(tau0² + 18 Cs² sqrt(2 Pi:Pi) / rho)) / 2`.
-- Staircase smooth sphere, halfway moving-wall bounce-back with
-  `u_wall = omega × r`. Momentum exchange is accumulated in the diagnostics data.
-- Uniform equilibrium inlet and transverse far field, zero-gradient outlet.
-  Domain is 10D by 5D by 5D, sphere center 2.5D from the inlet.
-- A one-time, localized 0.1% initial velocity perturbation; no imposed wake
-  force or fabricated vortex pattern.
-- A common population positivity factor scales only the regularized
-  nonequilibrium term, preserving its zero mass and momentum. The fraction of
-  limited cells is displayed. Invalid density, non-finite data or excessive
-  lattice Mach number stops the run; failed results are never cached.
+### 数値解法（`dist/lbm-gpu.js`）
 
-The SI/lattice conversion in `flow-state.js` preserves molecular Re:
+ブラウザのWebGPUを利用し、3次元離散運動論方程式を直接解きます。
 
-```
+- **格子・平衡化**: D3Q19格子、2次精度マクスウェル平衡分布、プル型ストリーミング、非平衡応力に対する2次エルミート正則化を採用しています。
+- **乱流モデル（LES）**: スマゴリンスキーSGSモデル（$C_s = 0.16$、フィルタ幅 1 セル）を組み込んでいます。
+  $$\tau_{\text{eff}} = \frac{\tau_0 + \sqrt{\tau_0^2 + 18 C_s^2 \sqrt{2 \boldsymbol{\Pi}:\boldsymbol{\Pi}} / \rho}}{2}$$
+- **物体境界**: 階段状の平滑球境界に対し、回転速度を考慮したHalfway moving-wall bounce-back（$\mathbf{u}_{\text{wall}} = \boldsymbol{\omega} \times \mathbf{r}$）を適用します。運動量交換量は診断データとして集計されます。
+- **計算領域と境界条件**: 領域サイズは $10D \times 5D \times 5D$ で、球の中心を流入面から $2.5D$ の位置に配置します。流入面および横方向遠方は一様平衡流入、流出面はゼロ勾配流出境界とします。
+- **初期撹乱と安定化**: 初期化時に局所的な 0.1% の速度撹乱を1回だけ与えます。強制的な後流力や作為的な渦パターンは注入しません。正則化された非平衡項のみを一様係数でスケーリングする正値性リミッターを備え、質量と運動量の保存を崩さずに負の分布関数を抑制します。異常密度、非有限値、または過大な局所マッハ数が生じた場合は計算を中断し、不正な結果をキャッシュしません。
+
+### 格子換算と解像度の限界
+
+`dist/flow-state.js` における物理単位から格子単位への変換は、分子レイノルズ数を保存するように設定されています。
+
+```text
 dx = D / D_lattice
-U_lattice = 0.025 U / (U + |omega| D/2)
-dt = U_lattice dx / U
-nu_lattice = nu dt / dx²
-tau0 = 0.5 + 3 nu_lattice
-omega_lattice = omega dt
+U_lattice = 0.025 * U / (U + |omega| * D / 2)
+dt = U_lattice * dx / U
+nu_lattice = nu * dt / dx^2
+tau0 = 0.5 + 3 * nu_lattice
+omega_lattice = omega * dt
 ```
 
-Physical kinematic viscosity is fixed at 1.5e-5 m²/s. SGS viscosity is added to
-molecular viscosity; it is not represented as a change to the requested Re.
-Default sphere resolution is 16 cells (12/20 alternatives). **This is a coarse
-LES of a smooth sphere**: seams, boundary-layer transition and drag crisis are
-not resolved or validated. Raising Re in the equations does not establish
-accuracy at that Re. Domain, grid and time convergence are not established.
-Do not use this implementation as a validated soccer-ball force predictor.
+物理動粘性係数は $1.5 \times 10^{-5}\,\text{m}^2/\text{s}$ に固定されています。SGS渦粘性は分子粘性に加算され、要求レイノルズ数の設定値そのものは変更しません。
 
-The three displayed planes contain GPU-computed density and velocity. Vorticity
-is a central derivative of in-plane velocity, nondimensionalized by D/U. Cells
-adjacent to a solid have no displayed derivative. Pressure uses
-`Cp = 2 (rho_lattice - 1) / (3 U_lattice²)`. Color scales stay fixed through time.
-The playback time is **CFD development time**, independent of flight time.
+球の直径に対する格子解像度は、既定で16セル（代替として12セル、20セル）です。**本実装は滑らかな球周りの粗格子LES**であり、縫合線の幾何形状、境界層の乱流遷移、および抗力危機を格子上で直接解像・検証しているわけではありません。数式上のレイノルズ数を高く設定しても、そのレイノルズ数における流体力学的精度が担保されるわけではありません。計算領域サイズ、格子幅、計算時間に関する系統的な収束性は未確立であり、本実装をサッカーボールの実機空力予測器として使用することはできません。
 
-GPU acceleration and an in-tab cache of the last two completed, exact-condition
-runs avoid repeat computation. There is no fitted CFD field surrogate. Changes
-to condition or quality mark the old result stale, and calculation can be
-cancelled. `断面CSV` exports the selected computed slice and its metadata.
-WebGPU availability and device/memory failures are reported explicitly.
+### 可視化とデータ出力
 
-### CFD verification
+直交する3断面（$xy$、$xz$、$yz$）について、GPUで計算された密度と流速を取得して描画します。渦度は面内流速の中心差分から求め、無次元渦度 $\omega D / U$ として表示します。固体内部および境界に隣接するセルでは差分計算を行わずマスク処理します。圧力係数は $C_p = 2 (\rho_{\text{lattice}} - 1) / (3 U_{\text{lattice}}^2)$ として算出します。
 
-Run `node --test test-cfd.mjs` for input transfer, frame orientation, signed wind,
-physical/lattice scaling at parameter extremes, and quadrature isotropy.
-Open `cfd-validation.html` to run the **same GPU solver** against uniform-flow
-preservation and analytical shear-wave decay along all three Cartesian axes.
-The separate rotating-wall check reverses sphere rotation at Re = 200 and checks
-positive drag and reversal of the momentum-exchange side force. These are
-implementation tests, not experimental validation of soccer aerodynamics.
-
-Implementation sources:
-- Latt & Chopard: https://arxiv.org/abs/physics/0506157
-- SGS relaxation derivation: https://docs.aerosim.io/nassu/theory/LES/subgrid.smag.html
+画面上の再生時間は**CFDの発達時間**であり、ボールの飛翔時間とは独立しています。CFD場に対する学習済みサロゲートモデル等は実装されておらず、同一条件での再計算を防ぐために直近2回分の完了結果（同一条件キャッシュ）のみをインメモリに保持します。計算条件や解像度を変更すると前回の結果は無効化され、計算の中止も可能です。「断面CSV」ボタンから、表示中の断面データと設定メタデータをCSV形式で出力できます。
 
 ## コード構成
 
-ブラウザで直接ES Modulesを読み込む構成です。ビルド工程や実行時の追加パッケージは不要です。
+本Webアプリケーションはブラウザが直接ES Modulesを読み込む構成となっており、トランスパイルやバンドルなどのビルド工程を必要としません。`dist/` ディレクトリ内のファイルがそのまま実行コードです。
 
 | ファイル | 役割 |
 | --- | --- |
-| `dist/app.js` | 軌道画面の設定入力、再生、画面間の連携 |
-| `dist/physics.js` | SI単位の飛行モデルとRK4積分。DOMから独立 |
-| `dist/flight-view.js` | 軌道、空力係数、参照後流のCanvas描画 |
-| `dist/flow.js` | CFD画面の操作と状態表示 |
-| `dist/flow-state.js` | 設定リンク、軌道の補間、局所座標、格子単位への変換 |
-| `dist/flow-runner.js` | 計算開始・中止・進捗・キャッシュ・GPU資源の解放 |
-| `dist/flow-field.js` | 断面の取り出し、流速・渦度・圧力への変換、CSV生成 |
-| `dist/flow-view.js` | CFD断面と軌道プレビューのCanvas描画 |
-| `dist/lbm-gpu.js` | WebGPUのバッファ、パイプライン、計算呼び出し |
-| `dist/lbm-shaders.js` | D3Q19の定数とWGSL計算式 |
-| `dist/canvas.js` | 両画面で共有するCanvasの解像度調整 |
-| `dist/cfd-validation.js` | ブラウザ上の数値検証画面 |
+| `dist/app.js` | 軌道画面の設定入力、アニメーション再生、画面間連携 |
+| `dist/physics.js` | SI単位系による飛翔運動方程式のRK4積分（DOM非依存） |
+| `dist/flight-view.js` | 3次元軌道、空力係数グラフ、参照後流のCanvas描画 |
+| `dist/flow.html` | 3D CFDタブのHTML構造 |
+| `dist/flow.js` | CFD画面のUI制御、状態管理、進捗表示 |
+| `dist/flow-state.js` | URLハッシュの入出力、軌道補間、局所座標変換、格子単位換算 |
+| `dist/flow-runner.js` | CFD計算の実行管理、進捗通知、中止処理、結果キャッシュ、GPU資源解放 |
+| `dist/flow-field.js` | 断面データ抽出、流速・渦度・圧力係数への変換、CSV文字列生成 |
+| `dist/flow-view.js` | CFD 3断面および軌道プレビューのCanvas描画 |
+| `dist/lbm-gpu.js` | WebGPUデバイス初期化、バッファ管理、コンピュートパイプライン実行 |
+| `dist/lbm-shaders.js` | D3Q19定数定義およびWGSLシェーダーコード |
+| `dist/canvas.js` | 高DPIディスプレイ対応のCanvas解像度調整処理 |
+| `dist/cfd-validation.js` | ブラウザ上でWebGPU計算の妥当性を確認する数値検証スクリプト |
+| `dist/calibration.json` | Python版LBMから抽出した既定後流フーリエ係数およびOU標本データ |
+| `dist/wake.bin` | 参照用2次元後流渦度バイナリデータ |
 
-描画関数には、その時点の計算結果と表示条件を明示的に渡します。断面の計算とCSV出力は同じ関数を使います。`FlowRunner`は画面要素を参照せず、計算失敗・中止時にもGPU資源を解放します。実行中の設定はコピーして保持し、画面での変更と分離しています。
+## テストと検証
 
-### 開発時の確認
+### 自動テスト（Node.js環境）
 
-```bash
-node test-physics.mjs
-node --test test-cfd.mjs test-flow.mjs test-flight-view.mjs
-```
-
-`test-flow.mjs`は3断面の渦度を解析的な速度場と比較し、SI単位とCSVの整合性を確認します。実行管理のテストでは模擬ソルバーを使い、完了・中止・初期化失敗・計算失敗・多重開始・キャッシュを検証します。実GPUでの数値検証は、従来どおり`cfd-validation.html`から実行できます。
-
-コードの整形規則は`.prettierrc.json`で管理します。整形する場合のみ、次のコマンドを使えます。
+ロジックおよび数値処理の検証は、Node.js組み込みのテストランナーを使用して実行します。追加のパッケージ導入は不要です。
 
 ```bash
-npm exec --yes --package=prettier@3.6.2 -- prettier --write 'dist/*.js' 'test-*.mjs'
+# リポジトリルート (FK/) から実行する場合
+npm test
+
+# または個別に実行する場合（リポジトリルート FK/ で実行）
+# node web/test-physics.mjs
+# node --test web/test-cfd.mjs web/test-flow.mjs web/test-flight-view.mjs
+
+# web/ ディレクトリから実行する場合
+# node test-physics.mjs
+# node --test test-cfd.mjs test-flow.mjs test-flight-view.mjs
 ```
+
+- `test-physics.mjs`: Python版RK45との一致（終点 0.1 mm 以内）、地面接地、跳ね上がり判定、マグヌス力と後流減衰の直交性、ステップ収束性など17項目を検査します。
+- `test-cfd.mjs`: URLパラメータの往復変換、局所右手系座標の向き、対向風の符号、極端なパラメータにおける格子換算、D3Q19格子の等方性を検査します。
+- `test-flow.mjs`: 3断面の解析的渦度復元、SI単位系・$C_p$ 換算、CSV出力形式、計算ライフサイクル（完了・中止・失敗・キャッシュ分離）を模擬ソルバーで検査します。
+- `test-flight-view.mjs`: 飛行時間0の接地軌道描画、ステップ間の位置補間処理を検査します。
+
+### ブラウザ数値検証（WebGPU実機環境）
+
+CI環境でのNode.jsテストとは別に、WebGPUを搭載したブラウザ環境での数値的妥当性を確認するため、検証ページ `dist/cfd-validation.html` を用意しています。
+
+ブラウザで `http://127.0.0.1:8765/cfd-validation.html` を開くと、実機GPU上で以下の検査が実行されます。
+
+1. **一様流の保存**: 障害物のない一様流において流速と圧力が維持されることの確認
+2. **せん断波の減衰**: デカルト3軸方向のせん断波の解析的減衰率との比較
+3. **回転壁面の反作用**: $\text{Re}=200$ において球の回転方向を反転させたときの正の抗力および運動量交換による横力の反転確認
+
+これらはGPUソルバー実装の不変量テストであり、サッカーボールの実験空力データを検証したものではありません。
+
+### 実装の参考資料
+
+- Latt & Chopard: https://arxiv.org/abs/physics/0506157
+- SGS relaxation derivation: https://docs.aerosim.io/nassu/theory/LES/subgrid.smag.html
