@@ -1,0 +1,12 @@
+{
+  "name": "knuckleball",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Knuckleball simulation and 3D Flight Lab web application",
+  "scripts": {
+    "test": "node web/test-physics.mjs && node --test web/test-cfd.mjs web/test-flow.mjs web/test-flight-view.mjs",
+    "serve": "python3 -m http.server 8765 --bind 127.0.0.1 --directory web/dist",
+    "start": "npm run serve"
+  }
+}
