@@ -1,4 +1,4 @@
-import { DEFAULTS, validateParameters, dot, cross, unit } from './physics.js?v=4';
+import { DEFAULTS, validateParameters, dot, cross, unit } from './physics.js?v=5';
 export function encodeFlowState(parameters, fraction = 0) {
   const p = validateParameters(parameters);
   if (!Number.isFinite(fraction) || fraction < 0 || fraction > 1)

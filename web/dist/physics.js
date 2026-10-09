@@ -53,7 +53,7 @@ export const CONTROLS = [
     digits: 0,
     hint: '正の回転数で、−90°は沈む、0°は横曲がり、+90°は浮く方向。',
   },
-  { key: 'knuckle', label: '後流の揺らぎ', min: 0, max: 2, step: 0.05, unit: '倍', digits: 2 },
+  { key: 'knuckle', label: '後流の揺らぎ', min: 0, max: 30, step: 0.05, unit: '倍', digits: 2 },
   {
     key: 'wakeHalfSpin',
     label: 'ブレの半減回転数',

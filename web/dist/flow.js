@@ -1,12 +1,12 @@
-import { createFlowRenderer, drawFlightPreview } from './flow-view.js?v=2';
+import { createFlowRenderer, drawFlightPreview } from './flow-view.js?v=3';
 import { sliceCSV } from './flow-field.js';
-import { simulate } from './physics.js?v=4';
+import { simulate } from './physics.js?v=5';
 import {
   decodeFlowState,
   encodeFlowState,
   flowCondition,
   latticeConfig,
-} from './flow-state.js?v=2';
+} from './flow-state.js?v=3';
 import { FlowRunner } from './flow-runner.js';
 const $ = (id) => document.getElementById(id),
   runner = new FlowRunner();

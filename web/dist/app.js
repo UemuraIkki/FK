@@ -1,6 +1,6 @@
-import { createFlightRenderer } from './flight-view.js?v=2';
-import { DEFAULTS, CONTROLS, PRESETS, validateParameters, simulate } from './physics.js?v=4';
-import { encodeFlowState, decodeFlowState } from './flow-state.js?v=2';
+import { createFlightRenderer } from './flight-view.js?v=3';
+import { DEFAULTS, CONTROLS, PRESETS, validateParameters, simulate } from './physics.js?v=5';
+import { encodeFlowState, decodeFlowState } from './flow-state.js?v=3';
 const $ = (id) => document.getElementById(id);
 let parameters = { ...DEFAULTS },
   calibration,

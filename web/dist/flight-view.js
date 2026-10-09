@@ -1,6 +1,6 @@
-import { dot, cross, unit } from './physics.js?v=4';
+import { dot, cross, unit } from './physics.js?v=5';
 import { sizeCanvas } from './canvas.js';
-import { sampleFlight } from './flow-state.js?v=2';
+import { sampleFlight } from './flow-state.js?v=3';
 
 /** Renders flight, force history, and the precomputed wake without owning simulation state. */
 export function createFlightRenderer(canvas, forcesCanvas, wakeCanvas) {

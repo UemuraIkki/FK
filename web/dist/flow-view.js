@@ -1,6 +1,6 @@
 import { sizeCanvas } from './canvas.js';
 import { planeData, scalarAt, fieldColor } from './flow-field.js';
-import { sampleFlight } from './flow-state.js?v=2';
+import { sampleFlight } from './flow-state.js?v=3';
 
 export function drawFlightPreview(canvas, flight, fraction) {
   const { c, w, h } = sizeCanvas(canvas, { reset: true }),
