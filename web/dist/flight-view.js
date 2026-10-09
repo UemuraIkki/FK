@@ -104,7 +104,7 @@ export function createFlightRenderer(canvas, forcesCanvas, wakeCanvas) {
           [x, 10, 0],
         ],
         project,
-        '#29474b',
+        '#1e293b',
         1,
       );
     for (let y = -10; y <= 10; y += 2)
@@ -114,7 +114,7 @@ export function createFlightRenderer(canvas, forcesCanvas, wakeCanvas) {
           [distance + 5, y, 0],
         ],
         project,
-        '#223e43',
+        '#162231',
         1,
       );
     pathLine(
@@ -123,7 +123,7 @@ export function createFlightRenderer(canvas, forcesCanvas, wakeCanvas) {
         [distance, 0, 0],
       ],
       project,
-      '#557d7d',
+      '#334155',
       1,
       [3, 5],
     );
@@ -136,11 +136,11 @@ export function createFlightRenderer(canvas, forcesCanvas, wakeCanvas) {
         [0, -10, 0],
       ],
       project,
-      '#486664',
+      '#334155',
       1,
     );
-    ctx.font = '12px "DM Sans",sans-serif';
-    ctx.fillStyle = '#779b9f';
+    ctx.font = '11px ui-monospace, "SF Mono", "Geist Mono", monospace';
+    ctx.fillStyle = '#64748b';
     ctx.textAlign = 'center';
     if (view !== 'goal')
       for (let x = 0; x <= distance; x += 10) {
@@ -156,7 +156,7 @@ export function createFlightRenderer(canvas, forcesCanvas, wakeCanvas) {
           [distance, y, 2.44],
         ],
         project,
-        '#385555',
+        '#334155',
         0.7,
       );
     for (let z = 0; z <= 2.45; z += 0.61)
@@ -166,7 +166,7 @@ export function createFlightRenderer(canvas, forcesCanvas, wakeCanvas) {
           [distance + 1.5, 3.66, z],
         ],
         project,
-        '#385555',
+        '#334155',
         0.7,
       );
     pathLine(
@@ -177,18 +177,18 @@ export function createFlightRenderer(canvas, forcesCanvas, wakeCanvas) {
         [distance, 3.66, 0],
       ],
       project,
-      '#d0dbd4',
+      '#f1f5f9',
       2.2,
     );
     pathLine(
       reference.samples.map((p) => p.state),
       project,
-      '#7b969d',
+      '#64748b',
       1.5,
       [5, 6],
     );
     const all = flight.samples.map((p) => p.state);
-    pathLine(all, project, '#36635e', 1.5);
+    pathLine(all, project, 'rgba(56, 189, 248, 0.2)', 1.5);
     const visible = flight.samples
         .filter((p) => p.t <= fraction * flight.duration)
         .map((p) => p.state),
@@ -198,24 +198,24 @@ export function createFlightRenderer(canvas, forcesCanvas, wakeCanvas) {
     pathLine(
       visible.map((p) => [p[0], p[1], 0]),
       project,
-      '#58c3ac55',
+      'rgba(56, 189, 248, 0.25)',
       1.5,
       [3, 4],
     );
-    ctx.shadowColor = '#6de9d1';
-    ctx.shadowBlur = 9;
-    pathLine(visible, project, '#6de9d1', 2.7);
+    ctx.shadowColor = 'rgba(34, 211, 238, 0.8)';
+    ctx.shadowBlur = 10;
+    pathLine(visible, project, '#22d3ee', 2.8);
     ctx.shadowBlur = 0;
     const end = project(flight.final);
     ctx.beginPath();
     ctx.arc(...end, 5, 0, Math.PI * 2);
-    ctx.strokeStyle = '#ffb876';
-    ctx.lineWidth = 1.7;
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 2;
     ctx.stroke();
     const position = project(current),
       ground = project([current[0], current[1], 0]);
-    pathLine([current, [current[0], current[1], 0]], project, '#6de9d155', 1, [3, 5]);
-    ctx.fillStyle = '#060f1577';
+    pathLine([current, [current[0], current[1], 0]], project, 'rgba(34, 211, 238, 0.4)', 1, [3, 5]);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
     ctx.beginPath();
     ctx.ellipse(ground[0], ground[1], 8, 3, 0, 0, Math.PI * 2);
     ctx.fill();
@@ -223,19 +223,19 @@ export function createFlightRenderer(canvas, forcesCanvas, wakeCanvas) {
     ctx.translate(...position);
     ctx.rotate(2 * Math.PI * parameters.spin * fraction * flight.duration);
     ctx.beginPath();
-    ctx.arc(0, 0, 6, 0, Math.PI * 2);
-    ctx.fillStyle = '#f4f9f6';
+    ctx.arc(0, 0, 6.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
     ctx.fill();
-    ctx.strokeStyle = '#08242a';
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 1.6;
     ctx.beginPath();
-    ctx.moveTo(-5, 0);
-    ctx.lineTo(5, 0);
+    ctx.moveTo(-5.5, 0);
+    ctx.lineTo(5.5, 0);
     ctx.stroke();
     ctx.restore();
     const label = project([distance, 0, 2.9]);
-    ctx.fillStyle = '#b1c7c5';
-    ctx.font = '12px "DM Sans",sans-serif';
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '11px ui-monospace, "SF Mono", "Geist Mono", monospace';
     ctx.fillText(`${distance} m / GOAL`, label[0], label[1] - 4);
   }
   function drawForces(flight, fraction) {
@@ -251,17 +251,17 @@ export function createFlightRenderer(canvas, forcesCanvas, wakeCanvas) {
       max = Math.max(0.5, ...values) + 0.025;
     const px = (t) => left + (t / flight.duration) * (right - left),
       py = (v) => bottom - ((v - min) / (max - min)) * (bottom - top);
-    c.font = '11px "DM Sans",sans-serif';
+    c.font = '10px ui-monospace, "SF Mono", "Geist Mono", monospace';
     c.textAlign = 'right';
     for (let i = 0; i <= 4; i++) {
       const v = min + (i * (max - min)) / 4,
         y = py(v);
-      c.strokeStyle = '#293b47';
+      c.strokeStyle = '#1e293b';
       c.beginPath();
       c.moveTo(left, y);
       c.lineTo(right, y);
       c.stroke();
-      c.fillStyle = '#90a5b3';
+      c.fillStyle = '#64748b';
       c.fillText(v.toFixed(2), left - 8, y + 4);
     }
     for (let i = 0; i <= 4; i++) {
@@ -270,9 +270,9 @@ export function createFlightRenderer(canvas, forcesCanvas, wakeCanvas) {
       c.fillText(`${t.toFixed(1)}s`, px(t), h - 5);
     }
     for (const [key, color] of [
-      ['cd', '#6de9d1'],
-      ['cl', '#ffb876'],
-      ['cm', '#9b9eff'],
+      ['cd', '#22d3ee'],
+      ['cl', '#fb923c'],
+      ['cm', '#818cf8'],
     ]) {
       c.beginPath();
       flight.samples.forEach((s, i) => {
@@ -281,13 +281,13 @@ export function createFlightRenderer(canvas, forcesCanvas, wakeCanvas) {
         i ? c.lineTo(x, y) : c.moveTo(x, y);
       });
       c.strokeStyle = color;
-      c.lineWidth = 1.7;
+      c.lineWidth = 1.8;
       c.stroke();
     }
     c.beginPath();
     c.moveTo(px(fraction * flight.duration), top);
     c.lineTo(px(fraction * flight.duration), bottom);
-    c.strokeStyle = '#d7e5e780';
+    c.strokeStyle = 'rgba(255, 255, 255, 0.4)';
     c.setLineDash([3, 4]);
     c.stroke();
     c.setLineDash([]);

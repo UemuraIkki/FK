@@ -8,13 +8,13 @@ export function drawFlightPreview(canvas, flight, fraction) {
     zmax = Math.max(1, ...samples.map((s) => s.state[2]));
   const px = (x) => 16 + ((w - 32) * x) / xmax,
     py = (z) => h - 22 - ((h - 40) * z) / zmax;
-  c.strokeStyle = '#29404b';
+  c.strokeStyle = '#1e293b';
   c.beginPath();
   c.moveTo(16, h - 22);
   c.lineTo(w - 16, h - 22);
   c.stroke();
-  c.strokeStyle = '#6de9d1';
-  c.lineWidth = 2;
+  c.strokeStyle = '#22d3ee';
+  c.lineWidth = 2.2;
   c.beginPath();
   samples.forEach((s, i) =>
     i ? c.lineTo(px(s.state[0]), py(s.state[2])) : c.moveTo(px(s.state[0]), py(s.state[2])),
@@ -23,12 +23,12 @@ export function drawFlightPreview(canvas, flight, fraction) {
   const s = samples.reduce((a, b) =>
     Math.abs(b.t - fraction * flight.duration) < Math.abs(a.t - fraction * flight.duration) ? b : a,
   );
-  c.fillStyle = '#fff';
+  c.fillStyle = '#ffffff';
   c.beginPath();
-  c.arc(px(s.state[0]), py(s.state[2]), 4, 0, Math.PI * 2);
+  c.arc(px(s.state[0]), py(s.state[2]), 4.5, 0, Math.PI * 2);
   c.fill();
-  c.font = '11px sans-serif';
-  c.fillStyle = '#99aebc';
+  c.font = '10px ui-monospace, "SF Mono", "Geist Mono", monospace';
+  c.fillStyle = '#64748b';
   c.fillText('側面 / 距離 x・高さ z', 16, h - 6);
 }
 

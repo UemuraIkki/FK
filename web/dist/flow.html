@@ -1,46 +1,224 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Flow Lab｜ボール周囲のCFD</title><link rel="stylesheet" href="./style.css?v=6"><link rel="stylesheet" href="./flow.css?v=1"></head>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Flow Lab｜ボール周囲の3D CFD解析</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b0f19'/%3E%3Cpath d='M6 24Q15 4 26 13' stroke='%2322d3ee' stroke-width='2.5' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='26' cy='13' r='3.5' fill='%23f8fafc'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+JP:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css?v=7">
+  <link rel="stylesheet" href="./flow.css?v=2">
+</head>
 <body>
-<header class="app-header"><a class="brand" id="back-to-flight" href="./"><span class="brand-symbol">ƒ</span><span>FLIGHT<span class="brand-light">LAB</span></span></a><nav class="flow-nav" aria-label="解析画面"><a id="flight-link" href="./">軌道</a><span aria-current="page">周辺の流れ / CFD</span></nav><span class="model-badge">3D · WebGPU</span></header>
-<main class="flow-workspace">
-<aside class="flow-settings" aria-label="CFD計算条件"><div class="flow-settings-scroll">
-  <span class="eyebrow">01 / CONDITION</span><h1>軌道から流れを解く</h1>
-  <p class="flow-intro">飛行中の時刻を選び、その瞬間の相対風速と回転で、球の周囲を三次元計算します。</p>
-  <div class="time-heading"><label for="flight-time">飛行中の時刻</label><output id="flight-time-value">—</output></div>
-  <canvas id="local-trajectory" aria-label="設定した軌道の側面と選択時刻"></canvas>
-  <input id="flight-time" type="range" min="0" max="1" step=".001" value="0">
-  <div class="control-scale"><span>キック</span><span id="flight-end">到達</span></div>
-  <dl class="condition-values"><div><dt>空気に対する速さ</dt><dd id="condition-speed">—</dd></div><div><dt>回転数</dt><dd id="condition-spin">—</dd></div><div><dt>ボールの直径</dt><dd id="condition-diameter">—</dd></div><div><dt>物理Re</dt><dd id="condition-re">—</dd></div></dl>
-  <p class="small-note">軌道画面を変更した場合は、「周辺の流れをCFDで計算」から新しい設定を開いてください。</p>
-  <div class="flow-option"><label for="quality">空間の細かさ</label><select id="quality"><option value="coarse">粗い / 直径12格子</option><option value="standard" selected>標準 / 直径16格子</option><option value="fine">細かい / 直径20格子</option></select></div>
-  <div class="flow-option"><label for="duration">後流を発達させる時間</label><select id="duration"><option value="10">短い / 10 D/U</option><option value="20" selected>標準 / 20 D/U</option><option value="40">長い / 40 D/U</option></select></div>
-  <p id="run-estimate" class="small-note">計算条件を読み込み中</p>
-  </div><div class="flow-run"><div class="run-buttons"><button id="run-cfd" class="primary-button" disabled>CFDを計算</button><button id="cancel-cfd" class="secondary-button" hidden>中止</button></div>
-  <progress id="cfd-progress" max="1" value="0" aria-label="CFD計算の進捗"></progress>
-  <p id="cfd-status" role="status" aria-live="polite">計算の準備中</p>
-  <p id="gpu-status" class="small-note"></p></div>
-</aside>
-<section class="flow-results" aria-label="三次元CFDの計算結果">
-  <div class="results-heading"><div><span class="eyebrow">02 / FLOW FIELD</span><h2>ボール周囲の流れ</h2></div><span id="result-state" class="result-badge">未計算</span></div>
-  <p class="small-note model-scope">滑らかな球の粗いLESです。縫い目・境界層・抗力危機は未解像です。</p>
-  <div class="flow-metrics"><div><span>計算対象の飛行時刻</span><strong id="result-flight-time">—</strong></div><div><span>後流の発達時間</span><strong id="result-flow-time">—</strong></div><div><span>計算済みステップ</span><strong id="result-steps">—</strong></div></div>
-  <div class="flow-view">
-    <div class="flow-toolbar"><div class="segmented" aria-label="CFD断面"><button data-plane="xy" class="selected" aria-pressed="true">横断面</button><button data-plane="xz" aria-pressed="false">縦断面</button><button data-plane="yz" aria-pressed="false">後流断面</button></div><select id="field-type" aria-label="表示する流れの量"><option value="vorticity">渦度</option><option value="speed">流速</option><option value="pressure">圧力係数</option></select></div>
-    <div class="flow-canvas-wrap"><canvas id="flow-canvas" aria-label="CFDで計算した流れの断面"></canvas><div id="flow-empty"><strong>まだ流れを計算していません</strong><span>時刻と格子を選び「CFDを計算」を押してください。</span><span>端末により数十秒〜数十分かかります。</span></div></div>
-    <div class="flow-legend"><div><span id="color-min">−2</span><span id="colorbar" class="colorbar"></span><span id="color-max">+2</span><span id="field-unit">ω D/U</span></div><label><input id="show-vectors" type="checkbox" checked> 流速の矢印</label></div>
-    <p id="plane-caption" class="small-note">球と一緒に動く座標系。空気は左から右へ流れます。</p>
+<header class="app-header">
+  <div class="header-inner">
+    <a class="brand" id="back-to-flight" href="./" aria-label="Flight Lab ホーム">
+      <span class="brand-symbol" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.18)" stroke-width="1.5" />
+          <path d="M4 18C8 10 16 6 20 8" stroke="url(#flow-brand-grad)" stroke-width="2.2" />
+          <circle cx="20" cy="8" r="2.2" fill="#38bdf8" stroke="none" />
+          <defs>
+            <linearGradient id="flow-brand-grad" x1="4" y1="18" x2="20" y2="8" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#06b6d4" />
+              <stop offset="1" stop-color="#38bdf8" />
+            </linearGradient>
+          </defs>
+        </svg>
+      </span>
+      <span class="brand-text">FLIGHT<span class="brand-light">LAB</span></span>
+    </a>
+    <div class="header-divider" aria-hidden="true"></div>
+    <nav class="flow-nav" aria-label="解析画面">
+      <a id="flight-link" href="./">
+        <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14" aria-hidden="true"><path d="M14 8.75A6.75 6.75 0 1 1 2.378 4.25a.75.75 0 0 1 1.244.836A5.25 5.25 0 1 0 12.5 8.75a.75.75 0 0 1 1.5 0Z"/><path d="M1.75 1a.75.75 0 0 1 .75.75v3a.75.75 0 0 1-.75.75h-3a.75.75 0 0 1 0-1.5h2.25V1.75A.75.75 0 0 1 1.75 1Z"/></svg>
+        軌道シミュレーション
+      </a>
+      <span class="nav-sep">/</span>
+      <span aria-current="page">周辺の流れ (3D CFD)</span>
+    </nav>
+    <div class="header-badge-wrap">
+      <span class="model-badge">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span>D3Q19 LBM · WebGPU</span>
+      </span>
+    </div>
   </div>
-  <div class="playback flow-playback"><button id="flow-play" class="play-button" disabled>▶ 再生</button><input id="flow-timeline" type="range" min="0" max="0" step="1" value="0" aria-label="計算した後流の再生位置" disabled><output id="frame-time">—</output><button id="export-slice" class="text-button" disabled>断面CSV</button></div>
-  <div class="cfd-diagnostics"><span>最大Ma <strong id="diag-mach">—</strong></span><span>平均密度の変化 <strong id="diag-density">—</strong></span><span>正値補正の適用率 <strong id="diag-limiter">—</strong></span></div>
-  <p id="result-note" class="small-note">三次元の速度・密度を計算し、その断面を表示します。矢印は断面内の速度成分です。</p>
-  <details class="model-details"><summary>計算方法・適用範囲</summary><div>
-    <p>WebGPU上でD3Q19の正則化格子ボルツマン法を実行します。Smagorinskyモデル（Cs = 0.16）で格子より小さい渦の粘性を近似し、回転球面には移動壁の半格子バウンスバックを使います。流れや渦を描くための人工的な横力は加えません。</p>
-    <p>選んだ飛行時刻の相対風速・回転を固定して、後流の発達を計算します。飛行全体に沿って流体とボールを双方向に連成する計算ではありません。地面やゴールなど、球以外の物体は含みません。軌道モデルの「後流の揺らぎ」「ブレの半減回転数」は、CFDの流体方程式を変更しません。</p>
-    <p>滑らかな球の粗いLESです。縫い目、境界層、抗力危機を解像した高精度な実球予測ではありません。全ての格子設定でこの制約があり、格子・領域・統計時間への依存が残ります。実験との定量一致やブレ球の再現は未検証です。球の近傍に渦が出ても、実球の渦と同一とは限りません。</p>
-    <p>分子動粘度は1.5 × 10⁻⁵ m²/s、Re = UD/ν。物理Reを保ったまま、格子上の速度を低くして時間刻みを設定します。表示するMaは格子上の圧縮性誤差の指標です。領域は10D × 5D × 5D、球の中心は入口から2.5D。入口と横境界は一様流、出口はゼロ勾配です。微小な初期擾乱を1回だけ与えます。</p>
-    <p>後流時間はCFDの開始からの経過時間です。20 D/Uは空気がボール直径の20倍を移動する時間で、統計的に十分な長さを保証するものではありません。圧力係数は Cp = 2(ρLB − 1)/(3U²LB)、渦度は断面内の速度の中心差分です。固体に接する差分は表示しません。</p>
-    <p>高速化にはGPUと、このタブ内での同一条件の結果の再利用を使います。未検証のサロゲートへの置き換えは行っていません。計算中に時刻や品質を変えると、現在の結果を「条件変更・再計算が必要」と表示します。</p>
-    <p><a href="https://arxiv.org/abs/physics/0506157" target="_blank" rel="noopener noreferrer">正則化LBM（Latt・Chopard）</a> · <a href="https://docs.aerosim.io/nassu/theory/LES/subgrid.smag.html" target="_blank" rel="noopener noreferrer">Smagorinskyの定式化</a> · <a href="./cfd-validation.html" target="_blank" rel="noopener">この端末で数値検証</a></p>
-  </div></details>
+</header>
+
+<main class="flow-workspace">
+<aside class="flow-settings" aria-label="CFD計算条件">
+  <div class="flow-settings-scroll">
+    <span class="eyebrow">
+      <svg viewBox="0 0 16 16" fill="currentColor" class="eyebrow-icon" aria-hidden="true"><path d="M9.5 1.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0ZM6.44 3.75a2.5 2.5 0 0 1 3.12 0l3.85 2.89a1 1 0 0 1 .39.8v5.06a2.5 2.5 0 0 1-2.5 2.5h-6.6a2.5 2.5 0 0 1-2.5-2.5V7.44a1 1 0 0 1 .39-.8l3.85-2.89Z"/></svg>
+      SAMPLING TIME
+    </span>
+    <h1>軌道から流れを解く</h1>
+    <p class="flow-intro">飛行中の瞬間時刻を選択し、その瞬間の相対風速と回転ベクトルを固定して、ボール周囲の三次元乱流後流を数値解析します。</p>
+    
+    <div class="time-card">
+      <div class="time-heading">
+        <label for="flight-time">計算対象の飛行時刻</label>
+        <output id="flight-time-value">—</output>
+      </div>
+      <canvas id="local-trajectory" aria-label="設定した軌道の側面と選択時刻"></canvas>
+      <input id="flight-time" type="range" min="0" max="1" step=".001" value="0">
+      <div class="control-scale"><span>0.00s (キック)</span><span id="flight-end">到達</span></div>
+    </div>
+
+    <div class="section-label">抽出された流体条件</div>
+    <dl class="condition-values">
+      <div><dt>空気に対する速さ</dt><dd id="condition-speed">—</dd></div>
+      <div><dt>回転数</dt><dd id="condition-spin">—</dd></div>
+      <div><dt>ボールの直径</dt><dd id="condition-diameter">—</dd></div>
+      <div><dt>物理レイノルズ数 Re</dt><dd id="condition-re">—</dd></div>
+    </dl>
+    
+    <p class="small-note">※ 軌道設定を変更した場合は、「周辺の流れをCFDで計算」から新しいURLを開いてください。</p>
+    
+    <div class="flow-options-grid">
+      <div class="flow-option">
+        <label for="quality">空間解像度 (球直径の格子数)</label>
+        <select id="quality">
+          <option value="coarse">粗い / 直径12格子 (高速)</option>
+          <option value="standard" selected>標準 / 直径16格子</option>
+          <option value="fine">細かい / 直径20格子 (高精度)</option>
+        </select>
+      </div>
+      <div class="flow-option">
+        <label for="duration">後流を発達させる無次元時間</label>
+        <select id="duration">
+          <option value="10">短い / 10 D/U</option>
+          <option value="20" selected>標準 / 20 D/U</option>
+          <option value="40">長い / 40 D/U (発達)</option>
+        </select>
+      </div>
+    </div>
+    <p id="run-estimate" class="small-note">計算条件を読み込み中</p>
+  </div>
+  
+  <div class="flow-run">
+    <div class="run-buttons">
+      <button id="run-cfd" class="primary-button" disabled>CFDを計算開始</button>
+      <button id="cancel-cfd" class="secondary-button" hidden>中止</button>
+    </div>
+    <progress id="cfd-progress" max="1" value="0" aria-label="CFD計算の進捗"></progress>
+    <div class="status-box">
+      <p id="cfd-status" role="status" aria-live="polite">計算の準備中</p>
+      <p id="gpu-status" class="small-note"></p>
+    </div>
+  </div>
+</aside>
+
+<section class="flow-results" aria-label="三次元CFDの計算結果">
+  <div class="results-heading">
+    <div>
+      <span class="eyebrow">
+        <svg viewBox="0 0 16 16" fill="currentColor" class="eyebrow-icon" aria-hidden="true"><path d="M1.5 3.25A2.25 2.25 0 0 1 3.75 1h8.5A2.25 2.25 0 0 1 14.5 3.25v9.5A2.25 2.25 0 0 1 12.25 15h-8.5A2.25 2.25 0 0 1 1.5 12.75v-9.5Z"/></svg>
+        FLOW FIELD
+      </span>
+      <h2>ボール周囲の流れの可視化</h2>
+    </div>
+    <span id="result-state" class="result-badge">未計算</span>
+  </div>
+  
+  <p class="small-note model-scope">※ 滑らかな球の粗いLES (ラージエディシミュレーション) です。微小な縫い目や剥離・境界層遷移は未解像です。</p>
+  
+  <div class="flow-metrics">
+    <div class="metric-card">
+      <span class="metric-label">対象の飛行時刻</span>
+      <strong id="result-flight-time">—</strong>
+    </div>
+    <div class="metric-card">
+      <span class="metric-label">後流の発達時間</span>
+      <strong id="result-flow-time">—</strong>
+    </div>
+    <div class="metric-card">
+      <span class="metric-label">計算済みステップ</span>
+      <strong id="result-steps">—</strong>
+    </div>
+  </div>
+
+  <div class="flow-view">
+    <div class="flow-toolbar">
+      <div class="segmented" aria-label="CFD断面">
+        <button data-plane="xy" class="selected" aria-pressed="true">横断面 (XY)</button>
+        <button data-plane="xz" aria-pressed="false">縦断面 (XZ)</button>
+        <button data-plane="yz" aria-pressed="false">後流断面 (YZ)</button>
+      </div>
+      <div class="field-select-wrap">
+        <label for="field-type" class="field-select-label">表示物理量:</label>
+        <select id="field-type" aria-label="表示する流れの量">
+          <option value="vorticity">渦度 (Vorticity)</option>
+          <option value="speed">流速 (Velocity Magnitude)</option>
+          <option value="pressure">圧力係数 (Cp)</option>
+        </select>
+      </div>
+    </div>
+    
+    <div class="flow-canvas-wrap">
+      <canvas id="flow-canvas" aria-label="CFDで計算した流れの断面"></canvas>
+      <div id="flow-empty">
+        <div class="empty-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M4.93 19.07l14.14-14.14"/></svg>
+        </div>
+        <strong>三次元CFDの計算結果がありません</strong>
+        <span>左側のパネルで対象時刻と空間解像度を選び、「CFDを計算開始」を押してください。</span>
+        <span class="empty-sub">※ WebGPUを用いて端末上でローカル演算します（数秒〜数分）。</span>
+      </div>
+    </div>
+
+    <div class="flow-legend">
+      <div class="legend-scale-wrap">
+        <span id="color-min" class="mono-label">−2</span>
+        <span id="colorbar" class="colorbar"></span>
+        <span id="color-max" class="mono-label">+2</span>
+        <span id="field-unit" class="mono-label">ω D/U</span>
+      </div>
+      <label class="vector-toggle">
+        <input id="show-vectors" type="checkbox" checked>
+        <span>流速ベクトル矢印を表示</span>
+      </label>
+    </div>
+    <p id="plane-caption" class="small-note caption-padding">球座標系（ボール固定）。空気は左から右へ流れます。</p>
+  </div>
+
+  <div class="playback flow-playback">
+    <button id="flow-play" class="play-button" disabled>▶ 再生</button>
+    <div class="timeline-container">
+      <input id="flow-timeline" type="range" min="0" max="0" step="1" value="0" aria-label="計算した後流の再生位置" disabled>
+    </div>
+    <output id="frame-time">—</output>
+    <button id="export-slice" class="text-button export-btn" disabled>
+      <svg viewBox="0 0 16 16" fill="currentColor" width="13" height="13" aria-hidden="true"><path d="M8.75 2.75a.75.75 0 0 0-1.5 0v5.69L5.03 6.22a.75.75 0 0 0-1.06 1.06l3.5 3.5a.75.75 0 0 0 1.06 0l3.5-3.5a.75.75 0 0 0-1.06-1.06L8.75 8.44V2.75Z"/><path d="M3.5 9.75a.75.75 0 0 0-1.5 0v1.5A2.75 2.75 0 0 0 4.75 14h6.5A2.75 2.75 0 0 0 14 11.25v-1.5a.75.75 0 0 0-1.5 0v1.5c0 .69-.56 1.25-1.25 1.25h-6.5c-.69 0-1.25-.56-1.25-1.25v-1.5Z"/></svg>
+      断面CSV
+    </button>
+  </div>
+
+  <div class="cfd-diagnostics">
+    <div class="diag-item"><span>最大Mach数:</span> <strong id="diag-mach">—</strong></div>
+    <div class="diag-item"><span>平均密度偏差:</span> <strong id="diag-density">—</strong></div>
+    <div class="diag-item"><span>正値補正適用率:</span> <strong id="diag-limiter">—</strong></div>
+  </div>
+
+  <p id="result-note" class="small-note">三次元の格子ボルツマン方程式を直接解き、断面の流速と渦度分布を可視化しています。</p>
+
+  <details class="model-details">
+    <summary>
+      <span>計算手法および流体モデルの適用範囲について</span>
+      <svg viewBox="0 0 16 16" fill="currentColor" class="chevron-icon" aria-hidden="true"><path fill-rule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/></svg>
+    </summary>
+    <div>
+      <p>WebGPU上でD3Q19の正則化格子ボルツマン法 (Regularized LBM) を実行します。Smagorinsky SGSモデル（Cs = 0.16）でサブグリッドスケールの乱流粘性を近似し、回転球面境界には移動壁の半格子バウンスバック法を用いています。架空の渦パターンを生成する人工的外力は印加していません。</p>
+      <p>選択した飛行時刻の空気相対速度と角速度を境界条件として固定し、球体周囲の後流の発達を時系列で計算します。ボールの運動と流れを双方向に連成するリアルタイム移動格子計算ではありません。</p>
+      <p>平滑球の粗いLESであるため、サッカーボールの縫い目や表面粗さ、臨界Re付近の急激な抗力危機は解像していません。実験との定量一致やブレ球の完全な再現を保証するものではありません。</p>
+      <p><a href="https://arxiv.org/abs/physics/0506157" target="_blank" rel="noopener noreferrer">正則化LBM（Latt・Chopard）</a> · <a href="https://docs.aerosim.io/nassu/theory/LES/subgrid.smag.html" target="_blank" rel="noopener noreferrer">Smagorinskyの定式化</a> · <a href="./cfd-validation.html" target="_blank" rel="noopener">端末ベンチマーク・数値検証</a></p>
+    </div>
+  </details>
 </section>
-</main><script type="module" src="./flow.js?v=2"></script></body></html>
+</main>
+<script type="module" src="./flow.js?v=2"></script>
+</body>
+</html>

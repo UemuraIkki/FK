@@ -1,38 +1,235 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Flight Lab｜フリーキック・シミュレーター</title>
-  <meta name="description" content="ボールの回転、初速、角度、風を調整してフリーキックの3次元軌道を比較するシミュレーター。">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230c1721'/%3E%3Cpath d='M6 24Q15 4 26 13' stroke='%236de9d1' stroke-width='3' fill='none'/%3E%3Ccircle cx='26' cy='13' r='3' fill='white'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="./style.css?v=6"><link rel="stylesheet" href="./flow.css?v=1">
+  <meta name="description" content="ボールの回転、初速、角度、風を調整してフリーキックの3次元軌道をリアルタイムに解析・比較する空力シミュレーター。">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b0f19'/%3E%3Cpath d='M6 24Q15 4 26 13' stroke='%2322d3ee' stroke-width='2.5' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='26' cy='13' r='3.5' fill='%23f8fafc'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+JP:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css?v=7">
+  <link rel="stylesheet" href="./flow.css?v=2">
 </head>
 <body>
-  <header class="app-header"><a class="brand" href="./" aria-label="Flight Lab ホーム"><span class="brand-symbol">ƒ</span><span>FLIGHT<span class="brand-light">LAB</span></span></a><div class="header-description">フリーキック・シミュレーター</div><span class="model-badge">空力モデル / 3D</span></header>
+  <header class="app-header">
+    <div class="header-inner">
+      <a class="brand" href="./" aria-label="Flight Lab ホーム">
+        <span class="brand-symbol" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.18)" stroke-width="1.5" />
+            <path d="M4 18C8 10 16 6 20 8" stroke="url(#brand-grad)" stroke-width="2.2" />
+            <circle cx="20" cy="8" r="2.2" fill="#38bdf8" stroke="none" />
+            <defs>
+              <linearGradient id="brand-grad" x1="4" y1="18" x2="20" y2="8" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#06b6d4" />
+                <stop offset="1" stop-color="#38bdf8" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </span>
+        <span class="brand-text">FLIGHT<span class="brand-light">LAB</span></span>
+      </a>
+      <div class="header-divider" aria-hidden="true"></div>
+      <div class="header-description">フリーキック弾道解析・空力シミュレーター</div>
+      <div class="header-badge-wrap">
+        <span class="model-badge">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span>RK4 3D・空力モデル</span>
+        </span>
+      </div>
+    </div>
+  </header>
+
   <main class="workspace">
     <aside id="controls" class="control-panel" aria-label="シミュレーション設定">
-      <div class="panel-heading"><div><span class="eyebrow">01 / SETUP</span><h1>キックをつくる</h1></div><div class="panel-actions"><button id="reset" class="text-button" type="button">リセット</button><button id="close-controls" class="mobile-close text-button" type="button">閉じる</button></div></div>
-      <div class="presets" aria-label="キックのプリセット"><button type="button" data-preset="lowspin">微回転ブレ球</button><button type="button" data-preset="knuckle" class="selected">無回転</button><button type="button" data-preset="curve">カーブ</button><button type="button" data-preset="drive">ドライブ</button><button type="button" data-preset="backspin">バックスピン</button></div>
-      <div id="main-controls"></div>
-      <div class="wake-response" aria-label="回転による後流への影響"><div class="wake-response-heading"><span>回転で残るブレ成分<br>初期条件</span><output id="wake-retention-value" aria-live="polite">—</output></div><meter id="wake-retention-meter" min="0" max="1" value="1" aria-label="初期の後流の横力振幅、無回転比"></meter><p id="wake-retention-note">同じ流速の無回転時を100%とする、後流の横力振幅のモデル値です。</p></div>
-      <details class="advanced"><summary>風・ボール・空力の詳細</summary><div id="advanced-controls"></div></details>
-      <div class="control-note"><span class="note-symbol">i</span><p>スライダーと数値入力で設定できます。値を変えると軌道を再計算します。完全な無回転だけでなく、微回転でもブレが生じます。「微回転ブレ球」から回転数を変えて比較できます。</p></div>
-    </aside>
-    <section class="results" aria-label="計算結果">
-      <div class="results-heading"><div><span class="eyebrow">02 / FLIGHT</span><h2>ボールの軌道</h2></div><div id="ending-badge" class="result-badge" role="status">計算中</div></div>
-      <div class="metrics" aria-live="polite"><div><span>横方向の変位</span><strong id="metric-side">—</strong></div><div><span>到達時の高さ</span><strong id="metric-height">—</strong></div><div><span>飛行時間</span><strong id="metric-time">—</strong></div><div><span>最高到達点</span><strong id="metric-apex">—</strong></div></div>
-      <div class="viewport">
-        <div class="view-toolbar"><div class="segmented" aria-label="視点"><button class="selected" type="button" data-view="perspective">3D</button><button type="button" data-view="top">上面</button><button type="button" data-view="side">側面</button><button type="button" data-view="goal">ゴール正面</button></div><span class="viewport-unit">単位 m</span></div>
-        <canvas id="flight-canvas" aria-label="ボールの3次元飛行軌道。ドラッグで視点を回転できます。" tabindex="0"></canvas>
-        <div class="viewport-footer"><div class="legend"><span class="legend-line"></span>設定したキック<span class="legend-line reference"></span>横力なし</div><span id="camera-hint">ドラッグで回転 · ホイールで拡大</span></div>
+      <div class="panel-heading">
+        <div>
+          <span class="eyebrow">
+            <svg viewBox="0 0 16 16" fill="currentColor" class="eyebrow-icon" aria-hidden="true"><path d="M9.5 1.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0ZM6.44 3.75a2.5 2.5 0 0 1 3.12 0l3.85 2.89a1 1 0 0 1 .39.8v5.06a2.5 2.5 0 0 1-2.5 2.5h-6.6a2.5 2.5 0 0 1-2.5-2.5V7.44a1 1 0 0 1 .39-.8l3.85-2.89Z"/></svg>
+            CONDITIONS
+          </span>
+          <h1>キックをつくる</h1>
+        </div>
+        <div class="panel-actions">
+          <button id="reset" class="text-button" type="button" title="初期値に戻す">リセット</button>
+          <button id="close-controls" class="mobile-close text-button" type="button">閉じる</button>
+        </div>
       </div>
-      <div class="playback"><button id="play" class="play-button" type="button" aria-label="軌道を再生">▶ 再生</button><button id="restart" class="icon-button" type="button" aria-label="最初に戻す">↺</button><input id="timeline" type="range" min="0" max="1" step="0.001" value="1" aria-label="再生位置"><output id="playback-time">0.00 s</output><select id="playback-speed" aria-label="再生速度"><option value="0.25">0.25倍</option><option value="0.5" selected>0.5倍</option><option value="1">1倍</option></select></div>
-      <div class="flow-entry"><a id="open-cfd" href="./flow.html" target="_blank" rel="noopener">周辺の流れをCFDで計算（別タブ）</a><span>現在の設定・再生位置を引き継ぎます</span></div>
-      <div class="analysis-panel"><div class="analysis-heading"><div class="segmented" aria-label="解析表示"><button data-analysis="forces" class="selected" type="button">空力係数</button><button data-analysis="wake" type="button">LBM後流の参照</button></div><span id="analysis-description">飛行中の抗力・横力・マグヌス力</span></div><div id="forces-panel"><canvas id="forces-canvas" aria-label="飛行中の空力係数の時系列"></canvas><div class="chart-legend"><span style="--key:#6de9d1">抗力 Cd</span><span style="--key:#ffb876">後流の横力 Cl</span><span style="--key:#9b9eff">回転の揚力 Cm</span></div></div><div id="wake-panel" hidden><canvas id="wake-canvas" aria-label="計算済みの2次元LBM渦度分布"></canvas><p id="wake-caption">2D流れは計算済みの参照データです。スライダーでは飛行モデルを再計算します。</p></div></div>
-      <details class="model-details"><summary>モデルと計算条件について</summary><div id="model-explanation"><p>2次元LBMで計算した後流の周期・振幅を使い、抗力危機、回転によるマグヌス力、3次元の後流変動を経験的にモデル化しています。実球の予測精度を検証したモデルではありません。</p><p>軌道画面では3次元の運動方程式をRK4で積分します。別タブの「周辺の流れ」では、選んだ飛行時刻の条件で三次元CFDを計算できます。風に対する相対速度を使用し、マグヌス力と後流の横力は相対速度に垂直に作用します。</p><p>ブレ球は完全な無回転に限りません。球の三次元の後流では、縦渦や剥離の変動が非定常な横力を生みます。2次元円柱の典型的なカルマン渦列だけでは説明できません。<a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC3660809/" target="_blank" rel="noopener noreferrer">低回転球の実験研究（Mizotaほか、2013）</a>を参照しています。</p><p>このアプリでは、回転が増えると後流の横力振幅が連続的に減衰する経験モデルを使います。「ブレの半減回転数」は、風のない25 m/s・直径22 cmでの基準値です。飛行中は空気相対速度と直径に応じて減衰量を計算します。実球のブレは速度・表面形状・姿勢にも依存し、ゼロ回転で必ず最大になるわけではありません。減衰式と半減値は実験から同定したものではなく、傾向を比較するための近似です。LBM後流の参照動画は、回転設定に連動しません。</p></div></details>
-      <footer class="app-footer"><span>FLIGHT LAB</span><span>2D LBMを基にした経験的な飛行シミュレーション</span></footer>
+
+      <div class="section-label">弾道タイプ（プリセット）</div>
+      <div class="presets" aria-label="キックのプリセット">
+        <button type="button" data-preset="lowspin">微回転ブレ球</button>
+        <button type="button" data-preset="knuckle" class="selected">無回転</button>
+        <button type="button" data-preset="curve">カーブ</button>
+        <button type="button" data-preset="drive">ドライブ</button>
+        <button type="button" data-preset="backspin">バックスピン</button>
+      </div>
+
+      <div id="main-controls"></div>
+
+      <div class="wake-response" aria-label="回転による後流への影響">
+        <div class="wake-response-heading">
+          <div class="wake-title-wrap">
+            <span class="wake-title">回転で残るブレ成分</span>
+            <span class="wake-sub">初期条件におけるモデル値</span>
+          </div>
+          <output id="wake-retention-value" aria-live="polite">—</output>
+        </div>
+        <div class="meter-track">
+          <meter id="wake-retention-meter" min="0" max="1" value="1" aria-label="初期の後流の横力振幅、無回転比"></meter>
+        </div>
+        <p id="wake-retention-note">同じ流速の無回転時を100%とする、後流の横力振幅のモデル値です。</p>
+      </div>
+
+      <details class="advanced">
+        <summary>
+          <span class="summary-label">
+            <svg viewBox="0 0 16 16" fill="currentColor" class="summary-icon" aria-hidden="true"><path d="M8 4.75a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0v-4.5A.75.75 0 0 1 8 4.75Zm0 7.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg>
+            風・ボール・空力の詳細設定
+          </span>
+          <svg viewBox="0 0 16 16" fill="currentColor" class="chevron-icon" aria-hidden="true"><path fill-rule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/></svg>
+        </summary>
+        <div id="advanced-controls"></div>
+      </details>
+
+      <div class="control-note">
+        <span class="note-symbol" aria-hidden="true">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14Zm0-8.5a.75.75 0 0 0-.75.75v3.5a.75.75 0 0 0 1.5 0v-3.5A.75.75 0 0 0 8 6.5Zm0-2.25a.875.875 0 1 0 0-1.75.875.875 0 0 0 0 1.75Z"/></svg>
+        </span>
+        <p>スライダーと数値入力で設定できます。値を変えるとリアルタイムに軌道を再計算します。完全な無回転だけでなく微回転でもブレが生じます。</p>
+      </div>
+    </aside>
+
+    <section class="results" aria-label="計算結果">
+      <div class="results-heading">
+        <div>
+          <span class="eyebrow">
+            <svg viewBox="0 0 16 16" fill="currentColor" class="eyebrow-icon" aria-hidden="true"><path d="M1.5 3.25A2.25 2.25 0 0 1 3.75 1h8.5A2.25 2.25 0 0 1 14.5 3.25v9.5A2.25 2.25 0 0 1 12.25 15h-8.5A2.25 2.25 0 0 1 1.5 12.75v-9.5Zm2.25-.75a.75.75 0 0 0-.75.75v9.5c0 .414.336.75.75.75h8.5a.75.75 0 0 0 .75-.75v-9.5a.75.75 0 0 0-.75-.75h-8.5Z"/></svg>
+            TRAJECTORY
+          </span>
+          <h2>ボールの軌道</h2>
+        </div>
+        <div id="ending-badge" class="result-badge" role="status">計算中</div>
+      </div>
+
+      <div class="metrics" aria-live="polite">
+        <div class="metric-card">
+          <span class="metric-label">横方向の変位</span>
+          <strong id="metric-side">—</strong>
+        </div>
+        <div class="metric-card">
+          <span class="metric-label">到達時の高さ</span>
+          <strong id="metric-height">—</strong>
+        </div>
+        <div class="metric-card">
+          <span class="metric-label">飛行時間</span>
+          <strong id="metric-time">—</strong>
+        </div>
+        <div class="metric-card">
+          <span class="metric-label">最高到達点</span>
+          <strong id="metric-apex">—</strong>
+        </div>
+      </div>
+
+      <div class="viewport">
+        <div class="view-toolbar">
+          <div class="segmented" aria-label="視点">
+            <button class="selected" type="button" data-view="perspective">3D</button>
+            <button type="button" data-view="top">上面</button>
+            <button type="button" data-view="side">側面</button>
+            <button type="button" data-view="goal">ゴール正面</button>
+          </div>
+          <span class="viewport-unit">空間スケール: m (メートル)</span>
+        </div>
+        <canvas id="flight-canvas" aria-label="ボールの3次元飛行軌道。ドラッグで視点を回転できます。" tabindex="0"></canvas>
+        <div class="viewport-footer">
+          <div class="legend">
+            <span class="legend-item"><span class="legend-line"></span>計算軌道</span>
+            <span class="legend-item"><span class="legend-line reference"></span>横力なし基準</span>
+          </div>
+          <span id="camera-hint" class="camera-hint">ドラッグで視点回転 · ホイールで拡大縮小</span>
+        </div>
+      </div>
+
+      <div class="playback">
+        <button id="play" class="play-button" type="button" aria-label="軌道を再生">▶ 再生</button>
+        <button id="restart" class="icon-button" type="button" aria-label="最初に戻す" title="最初に戻す">
+          <svg viewBox="0 0 16 16" fill="currentColor" width="16" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M8 2.5a5.5 5.5 0 1 0 4.908 3.037.75.75 0 0 1 1.346-.664A7 7 0 1 1 8 1v1.5Z" clip-rule="evenodd"/><path d="M8 1v3.5l3-1.75L8 1Z"/></svg>
+        </button>
+        <div class="timeline-container">
+          <input id="timeline" type="range" min="0" max="1" step="0.001" value="1" aria-label="再生位置">
+        </div>
+        <output id="playback-time">0.00 s</output>
+        <select id="playback-speed" aria-label="再生速度">
+          <option value="0.25">0.25×</option>
+          <option value="0.5" selected>0.5×</option>
+          <option value="1">1.0×</option>
+        </select>
+      </div>
+
+      <div class="flow-entry">
+        <div class="flow-entry-left">
+          <div class="flow-entry-badge">WebGPU</div>
+          <div class="flow-entry-text">
+            <a id="open-cfd" href="./flow.html" target="_blank" rel="noopener">周辺の流れを三次元CFDで計算（別タブ）</a>
+            <span>現在の設定と再生時刻のスナップショットを引き継ぎます</span>
+          </div>
+        </div>
+        <svg class="flow-entry-arrow" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/></svg>
+      </div>
+
+      <div class="analysis-panel">
+        <div class="analysis-heading">
+          <div class="segmented" aria-label="解析表示">
+            <button data-analysis="forces" class="selected" type="button">空力係数</button>
+            <button data-analysis="wake" type="button">LBM後流の参照</button>
+          </div>
+          <span id="analysis-description">飛行中の抗力・横力・マグヌス力</span>
+        </div>
+        <div id="forces-panel">
+          <canvas id="forces-canvas" aria-label="飛行中の空力係数の時系列"></canvas>
+          <div class="chart-legend">
+            <span style="--key:#22d3ee">抗力 Cd</span>
+            <span style="--key:#fb923c">後流の横力 Cl</span>
+            <span style="--key:#818cf8">回転の揚力 Cm</span>
+          </div>
+        </div>
+        <div id="wake-panel" hidden>
+          <canvas id="wake-canvas" aria-label="計算済みの2次元LBM渦度分布"></canvas>
+          <p id="wake-caption">2D流れは計算済みの参照データです。スライダーでは飛行モデルを再計算します。</p>
+        </div>
+      </div>
+
+      <details class="model-details">
+        <summary>
+          <span>モデルと計算条件について（物理仕様）</span>
+          <svg viewBox="0 0 16 16" fill="currentColor" class="chevron-icon" aria-hidden="true"><path fill-rule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/></svg>
+        </summary>
+        <div id="model-explanation">
+          <p>2次元LBMで計算した後流の周期・振幅を使い、抗力危機、回転によるマグヌス力、3次元の後流変動を経験的にモデル化しています。実球の予測精度を検証したモデルではありません。</p>
+          <p>軌道画面では3次元の運動方程式をRK4で積分します。別タブの「周辺の流れ」では、選んだ飛行時刻の条件で三次元CFDを計算できます。風に対する相対速度を使用し、マグヌス力と後流の横力は相対速度に垂直に作用します。</p>
+          <p>ブレ球は完全な無回転に限りません。球の三次元の後流では、縦渦や剥離の変動が非定常な横力を生みます。2次元円柱の典型的なカルマン渦列だけでは説明できません。<a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC3660809/" target="_blank" rel="noopener noreferrer">低回転球の実験研究（Mizotaほか、2013）</a>を参照しています。</p>
+          <p>このアプリでは、回転が増えると後流の横力振幅が連続的に減衰する経験モデルを使います。「ブレの半減回転数」は、風のない25 m/s・直径22 cmでの基準値です。飛行中は空気相対速度と直径に応じて減衰量を計算します。実球のブレは速度・表面形状・姿勢にも依存し、ゼロ回転で必ず最大になるわけではありません。減衰式と半減値は実験から同定したものではなく、傾向を比較するための近似です。LBM後流の参照動画は、回転設定に連動しません。</p>
+        </div>
+      </details>
+
+      <footer class="app-footer">
+        <div class="footer-left">
+          <span class="footer-brand">FLIGHT LAB</span>
+          <span class="footer-sep">/</span>
+          <span>Aerodynamic Ball Flight Simulator</span>
+        </div>
+        <span>2D LBM周期解析 × 3D RK4 軌道積分モデル</span>
+      </footer>
     </section>
   </main>
-  <button id="mobile-controls" class="mobile-controls" type="button" aria-expanded="false" aria-controls="controls">パラメータを調整</button>
+
+  <button id="mobile-controls" class="mobile-controls" type="button" aria-expanded="false" aria-controls="controls">
+    <svg viewBox="0 0 16 16" fill="currentColor" width="16" height="16" aria-hidden="true"><path d="M3 4.5h10a.75.75 0 0 0 0-1.5H3a.75.75 0 0 0 0 1.5Zm10 3.5H3a.75.75 0 0 0 0 1.5h10a.75.75 0 0 0 0-1.5Zm0 5H3a.75.75 0 0 0 0 1.5h10a.75.75 0 0 0 0-1.5Z"/></svg>
+    パラメータを調整
+  </button>
   <script type="module" src="./app.js?v=8"></script>
-</body></html>
+</body>
+</html>
