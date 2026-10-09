@@ -1,5 +1,6 @@
-import { dot, cross, unit } from './physics.js?v=3';
+import { dot, cross, unit } from './physics.js?v=4';
 import { sizeCanvas } from './canvas.js';
+import { sampleFlight } from './flow-state.js?v=2';
 
 /** Renders flight, force history, and the precomputed wake without owning simulation state. */
 export function createFlightRenderer(canvas, forcesCanvas, wakeCanvas) {
@@ -82,13 +83,7 @@ export function createFlightRenderer(canvas, forcesCanvas, wakeCanvas) {
   }
   function currentPoint(flight, fraction) {
     if (!flight) return null;
-    const t = fraction * flight.duration;
-    let i = flight.samples.findIndex((p) => p.t >= t);
-    if (i <= 0) return flight.samples[0].state;
-    const a = flight.samples[i - 1],
-      b = flight.samples[i],
-      f = (t - a.t) / (b.t - a.t);
-    return a.state.map((v, k) => v + f * (b.state[k] - v));
+    return sampleFlight(flight, fraction).state;
   }
   function draw(state) {
     const { parameters, flight, reference, view, camera, fraction } = state;
@@ -189,6 +184,21 @@ export function createFlightRenderer(canvas, forcesCanvas, wakeCanvas) {
     );
     const all = flight.samples.map((p) => p.state);
     pathLine(all, project, 'rgba(56, 189, 248, 0.2)', 1.5);
+    const start = project(all[0]);
+    ctx.beginPath();
+    ctx.arc(...start, 4, 0, Math.PI * 2);
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = '#94a3b8';
+    ctx.textAlign = 'left';
+    ctx.font = '12px sans-serif';
+    ctx.fillText(
+      `キック · 底面 ${parameters.launchHeight.toFixed(2)} m`,
+      start[0] + 10,
+      start[1] - 12,
+    );
+    ctx.textAlign = 'center';
     const visible = flight.samples
         .filter((p) => p.t <= fraction * flight.duration)
         .map((p) => p.state),
@@ -242,6 +252,14 @@ export function createFlightRenderer(canvas, forcesCanvas, wakeCanvas) {
     if (!flight) return;
     const { c, w, h } = sizeCanvas(forcesCanvas);
     c.clearRect(0, 0, w, h);
+    if (flight.duration <= 0) {
+      c.font = '14px sans-serif';
+      c.fillStyle = '#94a3b8';
+      c.textAlign = 'center';
+      c.fillText('空中飛行なし', w / 2, h / 2 - 10);
+      c.fillText('蹴り上げ角度か高さを上げてください。', w / 2, h / 2 + 16);
+      return;
+    }
     const left = 40,
       right = w - 14,
       top = 12,

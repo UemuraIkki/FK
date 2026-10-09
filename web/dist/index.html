@@ -120,7 +120,7 @@
           <strong id="metric-side">—</strong>
         </div>
         <div class="metric-card">
-          <span class="metric-label">到達時の高さ</span>
+          <span class="metric-label">到達時の中心高さ</span>
           <strong id="metric-height">—</strong>
         </div>
         <div class="metric-card">
@@ -128,7 +128,7 @@
           <strong id="metric-time">—</strong>
         </div>
         <div class="metric-card">
-          <span class="metric-label">最高到達点</span>
+          <span class="metric-label">最高到達点（中心）</span>
           <strong id="metric-apex">—</strong>
         </div>
       </div>
@@ -155,7 +155,7 @@
 
       <div class="playback">
         <button id="play" class="play-button" type="button" aria-label="軌道を再生">▶ 再生</button>
-        <button id="restart" class="icon-button" type="button" aria-label="最初に戻す" title="最初に戻す">
+        <button id="restart" class="icon-button" type="button" aria-label="蹴り出し位置に戻す" title="蹴り出し位置に戻す">
           <svg viewBox="0 0 16 16" fill="currentColor" width="16" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M8 2.5a5.5 5.5 0 1 0 4.908 3.037.75.75 0 0 1 1.346-.664A7 7 0 1 1 8 1v1.5Z" clip-rule="evenodd"/><path d="M8 1v3.5l3-1.75L8 1Z"/></svg>
         </button>
         <div class="timeline-container">
@@ -208,6 +208,7 @@
           <svg viewBox="0 0 16 16" fill="currentColor" class="chevron-icon" aria-hidden="true"><path fill-rule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/></svg>
         </summary>
         <div id="model-explanation">
+          <p>「蹴り出す高さ」はボールの底から地面までの距離で、初期値0 mは地面に接した状態です。軌道と到達時の高さ・最高到達点はボールの中心を表します。地面に触れるまでの空中飛行を計算し、転がりやバウンドは扱いません。</p>
           <p>2次元LBMで計算した後流の周期・振幅を使い、抗力危機、回転によるマグヌス力、3次元の後流変動を経験的にモデル化しています。実球の予測精度を検証したモデルではありません。</p>
           <p>軌道画面では3次元の運動方程式をRK4で積分します。別タブの「周辺の流れ」では、選んだ飛行時刻の条件で三次元CFDを計算できます。風に対する相対速度を使用し、マグヌス力と後流の横力は相対速度に垂直に作用します。</p>
           <p>ブレ球は完全な無回転に限りません。球の三次元の後流では、縦渦や剥離の変動が非定常な横力を生みます。2次元円柱の典型的なカルマン渦列だけでは説明できません。<a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC3660809/" target="_blank" rel="noopener noreferrer">低回転球の実験研究（Mizotaほか、2013）</a>を参照しています。</p>
@@ -230,6 +231,6 @@
     <svg viewBox="0 0 16 16" fill="currentColor" width="16" height="16" aria-hidden="true"><path d="M3 4.5h10a.75.75 0 0 0 0-1.5H3a.75.75 0 0 0 0 1.5Zm10 3.5H3a.75.75 0 0 0 0 1.5h10a.75.75 0 0 0 0-1.5Zm0 5H3a.75.75 0 0 0 0 1.5h10a.75.75 0 0 0 0-1.5Z"/></svg>
     パラメータを調整
   </button>
-  <script type="module" src="./app.js?v=8"></script>
+  <script type="module" src="./app.js?v=9"></script>
 </body>
 </html>

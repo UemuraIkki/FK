@@ -1,6 +1,6 @@
-import { createFlightRenderer } from './flight-view.js';
-import { DEFAULTS, CONTROLS, PRESETS, validateParameters, simulate } from './physics.js?v=3';
-import { encodeFlowState, decodeFlowState } from './flow-state.js';
+import { createFlightRenderer } from './flight-view.js?v=2';
+import { DEFAULTS, CONTROLS, PRESETS, validateParameters, simulate } from './physics.js?v=4';
+import { encodeFlowState, decodeFlowState } from './flow-state.js?v=2';
 const $ = (id) => document.getElementById(id);
 let parameters = { ...DEFAULTS },
   calibration,
@@ -141,7 +141,9 @@ function calculate() {
         ? 'ゴール枠内に到達'
         : `${parameters.distance} m地点に到達`
       : flight.ending === 'ground'
-        ? `${final[0].toFixed(1)} mで着地`
+        ? flight.duration === 0
+          ? '地面から離れません'
+          : `${final[0].toFixed(1)} mで着地`
         : '計算時間の上限';
     $('ending-badge').classList.toggle('ground', !goal);
     updateWakeResponse();
@@ -173,13 +175,16 @@ function drawWake(now) {
 }
 function updatePlayback() {
   updateFlowLink();
+  const canPlay = Boolean(flight && flight.duration > 0);
+  $('play').disabled = !canPlay;
+  $('timeline').disabled = !canPlay;
   $('play').textContent = playing ? 'Ⅱ 一時停止' : '▶ 再生';
   $('play').setAttribute('aria-label', playing ? '再生を一時停止' : '軌道を再生');
   $('timeline').value = fraction;
   $('playback-time').value = `${(fraction * (flight?.duration ?? 0)).toFixed(2)} s`;
 }
 function animate(now) {
-  if (playing && flight) {
+  if (playing && flight?.duration > 0) {
     fraction +=
       (Math.min((now - lastTime) / 1000, 0.05) * Number($('playback-speed').value)) /
       flight.duration;
@@ -267,6 +272,7 @@ document.querySelectorAll('[data-preset],[data-view],[data-analysis]').forEach((
   buttonStates.observe(button, { attributes: true, attributeFilter: ['class'] });
 });
 $('play').addEventListener('click', () => {
+  if (!flight || flight.duration <= 0) return;
   if (fraction >= 1) fraction = 0;
   playing = !playing;
   updatePlayback();

@@ -1,4 +1,4 @@
-import { DEFAULTS, validateParameters, dot, cross, unit } from './physics.js?v=3';
+import { DEFAULTS, validateParameters, dot, cross, unit } from './physics.js?v=4';
 export function encodeFlowState(parameters, fraction = 0) {
   const p = validateParameters(parameters);
   if (!Number.isFinite(fraction) || fraction < 0 || fraction > 1)
@@ -40,7 +40,8 @@ export function flowCondition(parameters, flight, fraction) {
   // Local right-handed frame: +x points downstream (air relative to ball).
   const air = [-state[3] - p.headwind, p.crosswind - state[4], -state[5]];
   const speed = Math.hypot(...air);
-  if (speed < 0.5) throw new Error('相対風速が0.5 m/s未満です。別の飛行時刻を選んでください。');
+  if (speed < 0.5)
+    throw new Error('相対風速が0.5 m/s未満です。初速・風、または飛行時刻を変更してください。');
   const ex = unit(air),
     up = Math.abs(ex[2]) > 0.95 ? [0, 1, 0] : [0, 0, 1];
   const ey = unit(cross(up, ex)),

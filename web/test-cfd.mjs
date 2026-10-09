@@ -7,6 +7,7 @@ import {
   decodeFlowState,
   flowCondition,
   latticeConfig,
+  sampleFlight,
 } from './dist/flow-state.js';
 import { C, W } from './dist/lbm-gpu.js';
 const cal = JSON.parse(
@@ -14,7 +15,7 @@ const cal = JSON.parse(
 );
 const close = (a, b, tol = 1e-10) => assert.ok(Math.abs(a - b) < tol, `${a} != ${b}`);
 test('CFD links round-trip all controls and flight position; reject malformed input', () => {
-  const p = { ...DEFAULTS, speed: 50, spin: -24, yaw: 90, elevation: 90 };
+  const p = { ...DEFAULTS, speed: 50, spin: -24, yaw: 90, elevation: 90, launchHeight: 1.25 };
   assert.deepEqual(decodeFlowState(encodeFlowState(p, 0.73)), { parameters: p, fraction: 0.73 });
   for (const hash of [
     '#kick=null',
@@ -25,6 +26,21 @@ test('CFD links round-trip all controls and flight position; reject malformed in
     '#oops=1',
   ])
     assert.throws(() => decodeFlowState(hash));
+});
+test('Legacy links default to ground launch and zero-duration CFD samples stay finite', () => {
+  const { launchHeight, ...legacy } = DEFAULTS;
+  const restored = decodeFlowState('#' + new URLSearchParams({ kick: JSON.stringify(legacy) }));
+  assert.equal(restored.parameters.launchHeight, 0);
+  const p = { ...DEFAULTS, elevation: 0, knuckle: 0 },
+    flight = simulate(p, cal);
+  for (const fraction of [0, 0.5, 1]) {
+    assert.deepEqual(sampleFlight(flight, fraction).state, flight.samples[0].state);
+    const c = flowCondition(p, flight, fraction);
+    assert.equal(c.flightTime, 0);
+    assert.deepEqual(c.position, [0, 0, p.diameter / 2]);
+    assert.ok(c.speed > 0);
+    assert.ok(Number.isFinite(latticeConfig(c).dt));
+  }
 });
 test('condition uses interpolated trajectory velocity and signed wind; frame is right handed', () => {
   const p = { ...DEFAULTS, spin: 7, axis: 30, headwind: 4, crosswind: -3 },

@@ -1,7 +1,12 @@
-import { createFlowRenderer, drawFlightPreview } from './flow-view.js';
+import { createFlowRenderer, drawFlightPreview } from './flow-view.js?v=2';
 import { sliceCSV } from './flow-field.js';
-import { simulate } from './physics.js?v=3';
-import { decodeFlowState, encodeFlowState, flowCondition, latticeConfig } from './flow-state.js';
+import { simulate } from './physics.js?v=4';
+import {
+  decodeFlowState,
+  encodeFlowState,
+  flowCondition,
+  latticeConfig,
+} from './flow-state.js?v=2';
 import { FlowRunner } from './flow-runner.js';
 const $ = (id) => document.getElementById(id),
   runner = new FlowRunner();
@@ -34,6 +39,8 @@ function isStale() {
 }
 function updateSelection() {
   if (!flight) return;
+  $('flight-time').disabled = flight.duration === 0;
+  if (flight.duration === 0) $('flight-time').value = 0;
   fraction = Number($('flight-time').value);
   $('flight-time-value').textContent = `${(fraction * flight.duration).toFixed(3)} s`;
   const hash = encodeFlowState(parameters, fraction);
@@ -237,7 +244,8 @@ try {
   const response = await fetch('./calibration.json');
   if (!response.ok) throw new Error('軌道の計算データを読み込めませんでした。');
   flight = simulate(parameters, await response.json());
-  $('flight-end').textContent = `${flight.duration.toFixed(2)} s`;
+  $('flight-end').textContent =
+    flight.duration === 0 ? '空中飛行なし・キック時の条件' : `${flight.duration.toFixed(2)} s`;
   $('gpu-status').textContent = navigator.gpu
     ? 'このブラウザはWebGPUに対応しています。計算はこの端末で行います。'
     : 'WebGPU非対応です。対応するブラウザで開いてください。';

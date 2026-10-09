@@ -5,6 +5,7 @@
 export const DEFAULTS = Object.freeze({
   speed: 25,
   elevation: 22,
+  launchHeight: 0,
   yaw: 0,
   spin: 0,
   axis: 0,
@@ -22,6 +23,16 @@ export const DEFAULTS = Object.freeze({
 export const CONTROLS = [
   { key: 'speed', label: '初速', min: 10, max: 50, step: 0.5, unit: 'm/s', digits: 1 },
   { key: 'elevation', label: '蹴り上げ角度', min: 0, max: 90, step: 1, unit: '°', digits: 0 },
+  {
+    key: 'launchHeight',
+    label: '蹴り出す高さ',
+    min: 0,
+    max: 2,
+    step: 0.01,
+    unit: 'm',
+    digits: 2,
+    hint: 'ボールの底から地面までの高さ。0 mで地面に置いた状態から蹴ります。',
+  },
   {
     key: 'spin',
     label: '回転数',
@@ -301,16 +312,53 @@ function rk4(t, s, dt, rhs) {
     d = rhs(t + dt, add(c, dt));
   return s.map((v, i) => v + (dt * (a[i] + 2 * b[i] + 2 * c[i] + d[i])) / 6);
 }
+
+// Locate the descending contact within an RK4 step. Linear interpolation from
+// a grounded start incorrectly selects t=0 for hops shorter than one step.
+function groundImpact(t, state, h, ground, rhs) {
+  let lo = 0,
+    hi = h,
+    apex = state[2];
+  if (state[2] === ground) {
+    // Find an airborne point to exclude the initial (ascending) root.
+    for (let probe = h / 2, i = 0; i < 48; i++, probe /= 2) {
+      const s = rk4(t, state, probe, rhs);
+      apex = Math.max(apex, s[2]);
+      if (s[2] > ground) {
+        lo = probe;
+        break;
+      }
+    }
+    // A hop below floating-point height resolution is treated as contact.
+    if (lo === 0) return { elapsed: 0, state: state.slice(), apex };
+  }
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2,
+      s = rk4(t, state, mid, rhs);
+    apex = Math.max(apex, s[2]);
+    if (s[2] > ground) lo = mid;
+    else hi = mid;
+  }
+  const elapsed = (lo + hi) / 2,
+    impact = rk4(t, state, elapsed, rhs);
+  impact[2] = ground;
+  return { elapsed, state: impact, apex };
+}
+
 export function simulate(input, calibration, options = {}) {
   const p = validateParameters(input),
     noise = makeNoise(p.seed, calibration),
     dt = options.dt ?? 1 / 600;
+  if (!Number.isFinite(dt) || dt <= 0) throw new Error('時間刻みは正の有限値にしてください。');
   const elevation = radians(p.elevation),
-    yaw = radians(p.yaw);
+    yaw = radians(p.yaw),
+    ground = p.diameter / 2;
+  // State z is the centre height in SI metres; the control measures clearance
+  // under the ball, so zero puts its bottom on the ground for any diameter.
   let state = [
     0,
     0,
-    0.35,
+    ground + p.launchHeight,
     p.speed * Math.cos(elevation) * Math.cos(yaw),
     p.speed * Math.cos(elevation) * Math.sin(yaw),
     p.speed * Math.sin(elevation),
@@ -324,31 +372,37 @@ export function simulate(input, calibration, options = {}) {
   let t = 0,
     ending = 'time',
     apex = state[2];
+  // This is an airborne-flight model: no rolling, bouncing or contact forces.
+  if (p.launchHeight === 0 && state[5] === 0 && rhs(0, state)[5] <= 0)
+    return { parameters: p, samples, ending: 'ground', apex, duration: 0, final: state };
   for (let step = 1; t < 8 - 1e-10; step++) {
     const h = Math.min(dt, 8 - t),
       next = rk4(t, state, h, rhs);
     if (!next.every(Number.isFinite))
       throw new Error('計算が不安定になりました。設定をリセットしてください。');
     let fraction = 1,
-      hit = false;
+      hit = false,
+      contact = null;
     if (next[0] >= p.distance && next[0] > state[0]) {
       fraction = (p.distance - state[0]) / (next[0] - state[0]);
       ending = 'goal';
       hit = true;
     }
-    if (next[2] <= p.diameter / 2) {
-      const groundFraction = (p.diameter / 2 - state[2]) / (next[2] - state[2]);
+    if (next[2] <= ground) {
+      const impact = groundImpact(t, state, h, ground, rhs),
+        groundFraction = impact.elapsed / h;
       if (groundFraction <= fraction) {
         fraction = groundFraction;
         ending = 'ground';
         hit = true;
+        contact = impact;
       }
     }
     if (hit) {
-      state = state.map((v, i) => v + fraction * (next[i] - v));
+      state = contact?.state ?? state.map((v, i) => v + fraction * (next[i] - v));
       t += h * fraction;
-      apex = Math.max(apex, state[2]);
-      samples.push(record(t, state));
+      apex = Math.max(apex, state[2], contact?.apex ?? state[2]);
+      if (t > samples.at(-1).t) samples.push(record(t, state));
       break;
     }
     state = next;

@@ -1,5 +1,6 @@
 import { sizeCanvas } from './canvas.js';
 import { planeData, scalarAt, fieldColor } from './flow-field.js';
+import { sampleFlight } from './flow-state.js?v=2';
 
 export function drawFlightPreview(canvas, flight, fraction) {
   const { c, w, h } = sizeCanvas(canvas, { reset: true }),
@@ -20,16 +21,14 @@ export function drawFlightPreview(canvas, flight, fraction) {
     i ? c.lineTo(px(s.state[0]), py(s.state[2])) : c.moveTo(px(s.state[0]), py(s.state[2])),
   );
   c.stroke();
-  const s = samples.reduce((a, b) =>
-    Math.abs(b.t - fraction * flight.duration) < Math.abs(a.t - fraction * flight.duration) ? b : a,
-  );
+  const s = sampleFlight(flight, fraction);
   c.fillStyle = '#ffffff';
   c.beginPath();
   c.arc(px(s.state[0]), py(s.state[2]), 4.5, 0, Math.PI * 2);
   c.fill();
   c.font = '10px ui-monospace, "SF Mono", "Geist Mono", monospace';
   c.fillStyle = '#64748b';
-  c.fillText('側面 / 距離 x・高さ z', 16, h - 6);
+  c.fillText('側面 / 距離 x・中心高さ z', 16, h - 6);
 }
 
 /** Owns canvas resources; receives a snapshot of application state on each draw. */

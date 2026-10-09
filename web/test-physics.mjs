@@ -20,11 +20,67 @@ function check(name, test) {
   console.log(`PASS ${name}`);
 }
 check('Python RK45 baseline agrees to 0.1 mm', () => {
-  const result = simulate(DEFAULTS, calibration);
+  // The recorded Python reference starts at centre height 0.35 m.
+  const result = simulate({ ...DEFAULTS, launchHeight: 0.35 - DEFAULTS.diameter / 2 }, calibration);
   assert.equal(result.ending, 'goal');
   assert.ok(Math.abs(result.final[1] - -0.40176398595737856) < 1e-4);
   assert.ok(Math.abs(result.final[2] - 0.8430500339830915) < 1e-4);
   assert.ok(Math.abs(result.duration - 1.7121619733855118) < 1e-5);
+});
+check('Ground launch keeps the ball bottom on the surface for every diameter', () => {
+  for (const diameter of [0.18, 0.22, 0.26]) {
+    const result = simulate({ ...DEFAULTS, diameter }, calibration);
+    assert.deepEqual(result.samples[0].state.slice(0, 3), [0, 0, diameter / 2]);
+    assert.ok(result.duration > 0);
+    assert.ok(result.samples.every((s) => s.state[2] >= diameter / 2));
+  }
+  const ground = simulate(DEFAULTS, calibration),
+    raised = simulate({ ...DEFAULTS, launchHeight: 0.24 }, calibration);
+  assert.equal(ground.ending, 'goal');
+  assert.ok(Math.abs(raised.final[2] - ground.final[2] - 0.24) < 1e-10);
+  assert.ok(Math.abs(raised.duration - ground.duration) < 1e-10);
+});
+check('Horizontal ground contact has one finite sample and raised horizontal kicks fly', () => {
+  const p = { ...DEFAULTS, elevation: 0, knuckle: 0, spin: 0 };
+  const grounded = simulate(p, calibration);
+  assert.equal(grounded.ending, 'ground');
+  assert.equal(grounded.duration, 0);
+  assert.equal(grounded.samples.length, 1);
+  assert.deepEqual(grounded.final.slice(0, 3), [0, 0, p.diameter / 2]);
+  const raised = simulate({ ...p, launchHeight: 0.5 }, calibration);
+  assert.equal(raised.ending, 'ground');
+  assert.ok(raised.duration > 0.2);
+  assert.equal(raised.final[2], p.diameter / 2);
+});
+check('Hops shorter than one RK4 step retain positive flight time and converge', () => {
+  for (const elevation of [0.001, 0.01, 0.02]) {
+    const p = { ...DEFAULTS, elevation, knuckle: 0, spin: 0 };
+    const coarse = simulate(p, calibration),
+      fine = simulate(p, calibration, { dt: 1 / 60000 });
+    assert.equal(coarse.ending, 'ground');
+    assert.ok(coarse.duration > 0);
+    assert.ok(coarse.final[0] > 0);
+    assert.ok(coarse.apex > p.diameter / 2);
+    assert.equal(coarse.final[2], p.diameter / 2);
+    assert.ok(Math.abs(coarse.duration - fine.duration) < 1e-8);
+    assert.ok(Math.abs(coarse.final[0] - fine.final[0]) < 1e-6);
+    assert.ok(coarse.samples.slice(1).every((s, i) => s.t > coarse.samples[i].t));
+  }
+});
+check('Upward Magnus lift can launch a horizontal kick from ground contact', () => {
+  const result = simulate(
+    { ...DEFAULTS, elevation: 0, knuckle: 0, spin: 24, axis: 90 },
+    calibration,
+  );
+  assert.ok(result.duration > 0.1);
+  assert.ok(result.apex > DEFAULTS.diameter / 2);
+  assert.ok(result.samples[1].state[5] > 0);
+});
+check('Launch height and solver step reject invalid values', () => {
+  for (const launchHeight of [-0.01, 2.01, NaN, Infinity])
+    assert.throws(() => simulate({ ...DEFAULTS, launchHeight }, calibration));
+  for (const dt of [0, -1, NaN, Infinity])
+    assert.throws(() => simulate(DEFAULTS, calibration, { dt }));
 });
 check('Spin reversal mirrors the trajectory with no wake wandering', () => {
   const p = { ...DEFAULTS, knuckle: 0, spin: 5 };
